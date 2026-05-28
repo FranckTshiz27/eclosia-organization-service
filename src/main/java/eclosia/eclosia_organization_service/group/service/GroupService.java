@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import eclosia.eclosia_organization_service.common.exception.BadRequestException;
+import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
 import eclosia.eclosia_organization_service.group.dto.CreateGroupDto;
 import eclosia.eclosia_organization_service.group.dto.UpdateGroupDto;
 import eclosia.eclosia_organization_service.group.entity.Group;
@@ -25,7 +27,7 @@ public class GroupService {
     public Group create(CreateGroupDto dto) {
 
         if (this.repository.existsByName(dto.getName())) {
-            throw new RuntimeException("Group already exists");
+            throw new  BadRequestException("Group already exists");
         }
 
         Group group = new Group();
@@ -45,7 +47,7 @@ public class GroupService {
     public Group findById(UUID id) {
 
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Group not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
     }
 
     public Group update(UUID id, UpdateGroupDto dto) {
