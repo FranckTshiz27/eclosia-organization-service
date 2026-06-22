@@ -1,5 +1,7 @@
 package eclosia.eclosia_organization_service.group.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import eclosia.eclosia_organization_service.common.jackson.StatusBooleanDeserializer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -19,5 +21,6 @@ public class UpdateGroupDto {
 
     private String address;
 
+    @JsonDeserialize(using = StatusBooleanDeserializer.class)
     private Boolean status;
 }

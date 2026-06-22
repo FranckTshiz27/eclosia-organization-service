@@ -1,0 +1,12 @@
+{
+  "schoolTypes": [
+    {
+      "code": "PUBLIC",
+      "label": "École publique"
+    },
+    {
+      "code": "PRIVATE",
+      "label": "École privée"
+    }
+  ]
+}
