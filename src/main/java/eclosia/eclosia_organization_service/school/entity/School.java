@@ -1,16 +1,23 @@
 package eclosia.eclosia_organization_service.school.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import eclosia.eclosia_organization_service.academic_model.entity.AcademicModel;
+import eclosia.eclosia_organization_service.school_academic_model.entity.SchoolAcademicModel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -99,4 +106,17 @@ public class School {
 
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime updatedAt;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "school")
+    private List<SchoolAcademicModel> schoolAcademicModels = new ArrayList<>();
+
+    @Transient
+    public AcademicModel getCurrentAcademicModel() {
+        return schoolAcademicModels.stream()
+                .filter(SchoolAcademicModel::getActive)
+                .findFirst()
+                .map(SchoolAcademicModel::getAcademicModel)
+                .orElse(null);
+    }
 }
