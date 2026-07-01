@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,7 @@ public class SchoolAcademicModelService {
     private final SchoolRepository schoolRepository;
     private final AcademicModelRepository academicModelRepository;
 
+    @Transactional
     public SchoolAcademicModel create(CreateSchoolAcademicModelDto dto) {
         if (repository.existsBySchool_IdAndAcademicModel_IdAndStartDate(
                 dto.getSchoolId(), dto.getAcademicModelId(), dto.getStartDate())) {
@@ -36,6 +38,7 @@ public class SchoolAcademicModelService {
         SchoolAcademicModel schoolAcademicModel = new SchoolAcademicModel();
         mapFromDto(schoolAcademicModel, dto.getSchoolId(), dto.getAcademicModelId(),
                 dto.getStartDate(), dto.getEndDate(), dto.getActive(), dto.getComment());
+        deactivateOtherActiveModels(dto.getSchoolId(), null, schoolAcademicModel.getActive());
         return repository.save(schoolAcademicModel);
     }
 
@@ -56,6 +59,7 @@ public class SchoolAcademicModelService {
                 .orElseThrow(() -> new ResourceNotFoundException("School academic model not found"));
     }
 
+    @Transactional
     public SchoolAcademicModel update(UUID id, UpdateSchoolAcademicModelDto dto) {
         SchoolAcademicModel schoolAcademicModel = findById(id);
 
@@ -66,6 +70,7 @@ public class SchoolAcademicModelService {
 
         mapFromDto(schoolAcademicModel, dto.getSchoolId(), dto.getAcademicModelId(),
                 dto.getStartDate(), dto.getEndDate(), dto.getActive(), dto.getComment());
+        deactivateOtherActiveModels(dto.getSchoolId(), id, schoolAcademicModel.getActive());
         return repository.save(schoolAcademicModel);
     }
 
@@ -89,6 +94,19 @@ public class SchoolAcademicModelService {
         schoolAcademicModel.setEndDate(endDate);
         schoolAcademicModel.setActive(active != null ? active : true);
         schoolAcademicModel.setComment(comment);
+    }
+
+    private void deactivateOtherActiveModels(UUID schoolId, UUID currentId, Boolean active) {
+        if (!Boolean.TRUE.equals(active)) {
+            return;
+        }
+
+        List<SchoolAcademicModel> otherActiveModels = currentId == null
+                ? repository.findBySchool_IdAndActiveTrue(schoolId)
+                : repository.findBySchool_IdAndActiveTrueAndIdNot(schoolId, currentId);
+
+        otherActiveModels.forEach(model -> model.setActive(false));
+        repository.saveAll(otherActiveModels);
     }
 
     private School resolveSchool(UUID schoolId) {

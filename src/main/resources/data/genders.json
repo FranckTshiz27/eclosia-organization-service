@@ -1,0 +1,10 @@
+[
+  {
+    "code": "MALE",
+    "label": "Masculin"
+  },
+  {
+    "code": "FEMALE",
+    "label": "Féminin"
+  }
+]

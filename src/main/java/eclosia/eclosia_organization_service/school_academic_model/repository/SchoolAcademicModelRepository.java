@@ -18,4 +18,8 @@ public interface SchoolAcademicModelRepository extends JpaRepository<SchoolAcade
     List<SchoolAcademicModel> findBySchool_IdOrderByStartDateDesc(UUID schoolId);
 
     List<SchoolAcademicModel> findByAcademicModel_IdOrderByStartDateDesc(UUID academicModelId);
+
+    List<SchoolAcademicModel> findBySchool_IdAndActiveTrue(UUID schoolId);
+
+    List<SchoolAcademicModel> findBySchool_IdAndActiveTrueAndIdNot(UUID schoolId, UUID id);
 }

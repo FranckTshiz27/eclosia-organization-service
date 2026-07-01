@@ -44,6 +44,22 @@ public class GlobalExceptionHandler {
                 .body(response);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusiness(
+            BusinessException ex
+    ) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Business Rule Violation");
+        response.put("message", ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGlobal(
             Exception ex
