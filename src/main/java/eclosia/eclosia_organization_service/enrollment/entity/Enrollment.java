@@ -1,12 +1,12 @@
 package eclosia.eclosia_organization_service.enrollment.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import eclosia.eclosia_organization_service.classroom.entity.Classroom;
 import eclosia.eclosia_organization_service.file.entity.FileResource;
 import eclosia.eclosia_organization_service.guardian.entity.Guardian;
 import eclosia.eclosia_organization_service.student.entity.Student;
+import eclosia.eclosia_organization_service.student_category.entity.StudentCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -94,7 +94,6 @@ public class Enrollment {
     /**
      * Eleve concerne.
      */
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     private Student student;
@@ -102,7 +101,6 @@ public class Enrollment {
     /**
      * Responsable de l'eleve.
      */
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guardian_id", nullable = false)
     private Guardian guardian;
@@ -110,7 +108,6 @@ public class Enrollment {
     /**
      * Classe de l'annee.
      */
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "classroom_id", nullable = false)
     private Classroom classroom;
@@ -118,15 +115,20 @@ public class Enrollment {
     /**
      * Annee scolaire.
      */
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "academic_year_id", nullable = false)
     private AcademicYear academicYear;
 
     /**
+     * Categorie de l'eleve dans l'annee scolaire.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_category_id")
+    private StudentCategory studentCategory;
+
+    /**
      * Photo officielle utilisee pour les documents de cette annee scolaire.
      */
-    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "photo_id")
     private FileResource photo;
@@ -157,6 +159,11 @@ public class Enrollment {
     @JsonProperty("academicYearId")
     public UUID getAcademicYearId() {
         return academicYear != null ? academicYear.getId() : null;
+    }
+
+    @JsonProperty("studentCategoryId")
+    public UUID getStudentCategoryId() {
+        return studentCategory != null ? studentCategory.getId() : null;
     }
 
     @JsonProperty("photoId")

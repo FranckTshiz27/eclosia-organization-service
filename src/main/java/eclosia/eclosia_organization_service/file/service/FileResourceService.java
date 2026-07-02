@@ -6,8 +6,13 @@ import eclosia.eclosia_organization_service.file.entity.FileResource;
 import eclosia.eclosia_organization_service.file.repository.FileResourceRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +38,21 @@ public class FileResourceService {
     public FileResource findById(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("File resource not found"));
+    }
+
+    public Resource getContent(UUID id) {
+        FileResource fileResource = findById(id);
+        Path filePath = Paths.get(fileResource.getPath()).resolve(fileResource.getFileName()).normalize();
+
+        try {
+            Resource resource = new UrlResource(filePath.toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new ResourceNotFoundException("File content not found");
+            }
+            return resource;
+        } catch (MalformedURLException exception) {
+            throw new IllegalStateException("Unable to read file content", exception);
+        }
     }
 
     public FileResource update(UUID id, FileResource payload) {

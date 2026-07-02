@@ -21,11 +21,28 @@ import eclosia.eclosia_organization_service.guardian.entity.Guardian;
 import eclosia.eclosia_organization_service.guardian.repository.GuardianRepository;
 import eclosia.eclosia_organization_service.student.entity.Student;
 import eclosia.eclosia_organization_service.student.repository.StudentRepository;
+import eclosia.eclosia_organization_service.student_category.entity.StudentCategory;
+import eclosia.eclosia_organization_service.student_category.repository.StudentCategoryRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -33,10 +50,12 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 @RequiredArgsConstructor
 @Data
+@Slf4j
 public class EnrollmentService {
 
     private static final int ENROLLMENT_NUMBER_RETRY_LIMIT = 30;
     private static final int STUDENT_NUMBER_RETRY_LIMIT = 30;
+    private static final String ENROLLMENT_UPLOAD_PATH = "uploads/enrollments";
 
     private final EnrollmentRepository repository;
     private final StudentRepository studentRepository;
@@ -47,15 +66,17 @@ public class EnrollmentService {
     private final CountryRepository countryRepository;
     private final CityRepository cityRepository;
     private final CommuneRepository communeRepository;
+    private final StudentCategoryRepository studentCategoryRepository;
 
     @Transactional
-    public Enrollment create(CreateEnrollmentDto dto) {
+    public Enrollment create(CreateEnrollmentDto dto, MultipartFile photoFile) {
         Guardian guardian = resolveGuardian(dto.getGuardianId());
         Classroom classroom = resolveClassroom(dto.getClassroomId());
         AcademicYear academicYear = resolveAcademicYear(dto.getAcademicYearId());
-        FileResource photo = resolvePhoto(dto.getPhotoId());
+        StudentCategory studentCategory = resolveStudentCategory(dto.getStudentCategoryId());
+        FileResource photo = storePhoto(photoFile);
 
-        validateSchoolConsistency(guardian, classroom, academicYear);
+        validateSchoolConsistency(guardian, classroom, academicYear, studentCategory);
 
         Student student = buildStudent(dto);
         student.setStudentNumber(generateStudentNumber());
@@ -69,6 +90,7 @@ public class EnrollmentService {
         enrollment.setGuardian(guardian);
         enrollment.setClassroom(classroom);
         enrollment.setAcademicYear(academicYear);
+        enrollment.setStudentCategory(studentCategory);
         enrollment.setPhoto(photo);
 
         if (repository.existsByStudent_IdAndAcademicYear_Id(student.getId(), academicYear.getId())) {
@@ -78,20 +100,41 @@ public class EnrollmentService {
         return repository.save(enrollment);
     }
 
-    public List<Enrollment> findAll(UUID academicYearId, UUID classroomId, UUID guardianId, UUID studentId) {
+    public Page<Enrollment> findAll(UUID academicYearId, UUID classroomId, UUID guardianId, UUID studentId, int page, int size) {
+        Pageable pageable = buildPageable(page, size);
+
         if (academicYearId != null) {
-            return repository.findByAcademicYear_IdOrderByCreatedAtDesc(academicYearId);
+            return repository.findByAcademicYear_IdOrderByCreatedAtDesc(academicYearId, pageable);
         }
         if (classroomId != null) {
-            return repository.findByClassroom_IdOrderByCreatedAtDesc(classroomId);
+            return repository.findByClassroom_IdOrderByCreatedAtDesc(classroomId, pageable);
         }
         if (guardianId != null) {
-            return repository.findByGuardian_IdOrderByCreatedAtDesc(guardianId);
+            return repository.findByGuardian_IdOrderByCreatedAtDesc(guardianId, pageable);
         }
         if (studentId != null) {
-            return repository.findByStudent_IdOrderByCreatedAtDesc(studentId);
+            return repository.findByStudent_IdOrderByCreatedAtDesc(studentId, pageable);
         }
-        return repository.findAll();
+        return repository.findAll(pageable);
+    }
+
+    public Page<Enrollment> findByAcademicYearAndSchool(UUID academicYearId, UUID schoolId, int page, int size) {
+        Pageable pageable = buildPageable(page, size);
+        AcademicYear academicYear = resolveAcademicYear(academicYearId);
+        if (!schoolId.equals(academicYear.getSchoolId())) {
+            throw new BadRequestException("Academic year does not belong to the provided school");
+        }
+
+        Page<Enrollment> enrollments = repository.findByAcademicYear_IdOrderByCreatedAtDesc(academicYearId, pageable);
+        log.info(
+                "Enrollments fetched - academicYearId: {}, schoolId: {}, page: {}, size: {}, returned: {}",
+                academicYearId,
+                schoolId,
+                page,
+                size,
+                enrollments.getNumberOfElements()
+        );
+        return enrollments;
     }
 
     public Enrollment findById(UUID id) {
@@ -155,13 +198,23 @@ public class EnrollmentService {
         throw new BadRequestException("Unable to generate unique student number");
     }
 
-    private void validateSchoolConsistency(Guardian guardian, Classroom classroom, AcademicYear academicYear) {
+    private void validateSchoolConsistency(
+            Guardian guardian,
+            Classroom classroom,
+            AcademicYear academicYear,
+            StudentCategory studentCategory
+    ) {
         UUID guardianSchoolId = guardian.getSchoolId();
         UUID classroomSchoolId = classroom.getSchoolId();
         UUID academicYearSchoolId = academicYear.getSchoolId();
+        UUID studentCategorySchoolId = studentCategory.getSchoolId();
 
-        if (!guardianSchoolId.equals(classroomSchoolId) || !guardianSchoolId.equals(academicYearSchoolId)) {
-            throw new BadRequestException("Guardian, classroom and academic year must belong to the same school");
+        if (!guardianSchoolId.equals(classroomSchoolId)
+                || !guardianSchoolId.equals(academicYearSchoolId)
+                || !guardianSchoolId.equals(studentCategorySchoolId)) {
+            throw new BadRequestException(
+                    "Guardian, classroom, academic year and student category must belong to the same school"
+            );
         }
     }
 
@@ -180,13 +233,74 @@ public class EnrollmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
     }
 
-    private FileResource resolvePhoto(UUID photoId) {
-        if (photoId == null) {
+    private StudentCategory resolveStudentCategory(UUID studentCategoryId) {
+        return studentCategoryRepository.findById(studentCategoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student category not found"));
+    }
+
+    private FileResource storePhoto(MultipartFile photoFile) {
+        if (photoFile == null || photoFile.isEmpty()) {
             return null;
         }
 
-        return fileResourceRepository.findById(photoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Photo file not found"));
+        String originalName = extractFileName(photoFile.getOriginalFilename());
+        String extension = extractExtension(originalName);
+        String generatedFileName = UUID.randomUUID() + (extension.isBlank() ? "" : "." + extension);
+        Path uploadDirectory = Paths.get(ENROLLMENT_UPLOAD_PATH).toAbsolutePath().normalize();
+        Path targetPath = uploadDirectory.resolve(generatedFileName);
+
+        try {
+            Files.createDirectories(uploadDirectory);
+            try (InputStream inputStream = photoFile.getInputStream()) {
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            FileResource fileResource = new FileResource();
+            fileResource.setFileName(generatedFileName);
+            fileResource.setOriginalName(originalName);
+            fileResource.setMimeType(
+                    photoFile.getContentType() != null ? photoFile.getContentType() : "application/octet-stream"
+            );
+            fileResource.setSize(photoFile.getSize());
+            fileResource.setPath(uploadDirectory.toString());
+            fileResource.setExtension(extension.isBlank() ? null : extension);
+            fileResource.setChecksum(calculateSha256(targetPath));
+
+            return fileResourceRepository.save(fileResource);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to store photo file", exception);
+        }
+    }
+
+    private String extractFileName(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "uploaded-file";
+        }
+        return Paths.get(originalFilename).getFileName().toString();
+    }
+
+    private String extractExtension(String fileName) {
+        int extensionIndex = fileName.lastIndexOf('.');
+        if (extensionIndex < 0 || extensionIndex == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(extensionIndex + 1).toLowerCase();
+    }
+
+    private String calculateSha256(Path filePath) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream inputStream = Files.newInputStream(filePath);
+                 DigestInputStream digestInputStream = new DigestInputStream(inputStream, digest)) {
+                byte[] buffer = new byte[8192];
+                while (digestInputStream.read(buffer) != -1) {
+                    // Stream file fully to compute digest.
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (IOException | NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("Unable to calculate file checksum", exception);
+        }
     }
 
     private Country resolveCountry(UUID countryId, String errorMessage) {
@@ -214,5 +328,15 @@ public class EnrollmentService {
 
         return communeRepository.findById(communeId)
                 .orElseThrow(() -> new ResourceNotFoundException(errorMessage));
+    }
+
+    private Pageable buildPageable(int page, int size) {
+        if (page < 0) {
+            throw new BadRequestException("Page must be greater than or equal to 0");
+        }
+        if (size < 1) {
+            throw new BadRequestException("Size must be greater than 0");
+        }
+        return PageRequest.of(page, size);
     }
 }
