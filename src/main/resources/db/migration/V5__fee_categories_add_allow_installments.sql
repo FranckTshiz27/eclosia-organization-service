@@ -1,0 +1,2 @@
+ALTER TABLE fee_categories
+    ADD COLUMN IF NOT EXISTS allow_installments BOOLEAN NOT NULL DEFAULT TRUE;
