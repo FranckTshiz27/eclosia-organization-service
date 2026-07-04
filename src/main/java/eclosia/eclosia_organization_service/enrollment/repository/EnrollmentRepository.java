@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
@@ -55,4 +56,17 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             @Param("academicYearId") UUID academicYearId,
             @Param("schoolId") UUID schoolId
     );
+
+    @Query("""
+            SELECT e
+            FROM Enrollment e
+            JOIN FETCH e.academicYear ay
+            JOIN FETCH e.studentCategory sc
+            JOIN FETCH e.classroom c
+            JOIN FETCH c.academicLevel al
+            LEFT JOIN FETCH c.academicSection sec
+            LEFT JOIN FETCH c.academicOption opt
+            WHERE e.id = :id
+            """)
+    Optional<Enrollment> findByIdWithPaymentContext(@Param("id") UUID id);
 }

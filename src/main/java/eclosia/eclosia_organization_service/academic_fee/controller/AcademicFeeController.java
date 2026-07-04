@@ -5,9 +5,11 @@ import eclosia.eclosia_organization_service.academic_fee.dto.UpdateAcademicFeeDt
 import eclosia.eclosia_organization_service.academic_fee.entity.AcademicFee;
 import eclosia.eclosia_organization_service.academic_fee.service.AcademicFeeService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,14 +28,18 @@ import java.util.UUID;
 @RestController
 @RequestMapping(path = "academic-fee")
 @RequiredArgsConstructor
+@Validated
 public class AcademicFeeController {
 
     private final AcademicFeeService service;
 
     @PostMapping
-    public ResponseEntity<AcademicFee> create(@Valid @RequestBody CreateAcademicFeeDto dto) {
-        AcademicFee academicFee = service.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(academicFee);
+    public ResponseEntity<List<AcademicFee>> create(
+            @NotEmpty(message = "At least one academic fee is required")
+            @Valid @RequestBody List<@Valid CreateAcademicFeeDto> dtos
+    ) {
+        List<AcademicFee> academicFees = service.createAll(dtos);
+        return ResponseEntity.status(HttpStatus.CREATED).body(academicFees);
     }
 
     @GetMapping

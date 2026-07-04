@@ -10,6 +10,7 @@ import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import eclosia.eclosia_organization_service.fee_category.entity.FeeCategory;
 import eclosia.eclosia_organization_service.payment_installment.entity.PaymentInstallment;
 import eclosia.eclosia_organization_service.school.entity.School;
+import eclosia.eclosia_organization_service.student_category.entity.StudentCategory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -38,10 +39,12 @@ import java.util.UUID;
                         columnNames = {
                                 "school_id",
                                 "academic_year_id",
+                                "fee_category_id",
                                 "academic_cycle_id",
                                 "academic_level_id",
                                 "academic_section_id",
                                 "academic_option_id",
+                                "student_category_id",
                                 "payment_installment_id",
                                 "code"
                         }
@@ -60,9 +63,6 @@ public class AcademicFee {
     @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(length = 500)
-    private String description;
-
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
@@ -71,9 +71,6 @@ public class AcademicFee {
 
     @Column(nullable = false)
     private Boolean active = true;
-
-    @Column(length = 500)
-    private String comment;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
@@ -109,6 +106,11 @@ public class AcademicFee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "academic_option_id")
     private AcademicOption academicOption;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_category_id", nullable = false)
+    private StudentCategory studentCategory;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
@@ -156,6 +158,11 @@ public class AcademicFee {
     @JsonProperty("academicOptionId")
     public UUID getAcademicOptionId() {
         return academicOption != null ? academicOption.getId() : null;
+    }
+
+    @JsonProperty("studentCategoryId")
+    public UUID getStudentCategoryId() {
+        return studentCategory != null ? studentCategory.getId() : null;
     }
 
     @JsonProperty("paymentInstallmentId")
