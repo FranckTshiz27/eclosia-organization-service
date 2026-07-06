@@ -1,14 +1,16 @@
 package eclosia.eclosia_organization_service.payment.controller;
 
-import eclosia.eclosia_organization_service.payment.dto.CreatePaymentDto;
+import eclosia.eclosia_organization_service.payment.dto.CreatePaymentBatch;
 import eclosia.eclosia_organization_service.payment.dto.UpdatePaymentDto;
 import eclosia.eclosia_organization_service.payment.entity.Payment;
 import eclosia.eclosia_organization_service.payment.entity.PaymentStatus;
 import eclosia.eclosia_organization_service.payment.service.PaymentService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,14 +29,18 @@ import java.util.UUID;
 @RestController
 @RequestMapping(path = "payment")
 @RequiredArgsConstructor
+@Validated
 public class PaymentController {
 
     private final PaymentService service;
 
     @PostMapping
-    public ResponseEntity<Payment> create(@Valid @RequestBody CreatePaymentDto dto) {
-        Payment payment = service.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    public ResponseEntity<List<Payment>> create(
+            @NotEmpty(message = "At least one payment is required")
+            @Valid @RequestBody CreatePaymentBatch dtos
+    ) {
+        List<Payment> payments = service.createAll(dtos);
+        return ResponseEntity.status(HttpStatus.CREATED).body(payments);
     }
 
     @GetMapping

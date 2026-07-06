@@ -31,10 +31,6 @@ import java.util.UUID;
         name = "payments",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_payment_receipt_number",
-                        columnNames = "receipt_number"
-                ),
-                @UniqueConstraint(
                         name = "uk_payment_transaction_reference",
                         columnNames = "transaction_reference"
                 )

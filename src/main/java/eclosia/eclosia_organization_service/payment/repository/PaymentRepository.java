@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,10 +17,20 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
     boolean existsByTransactionReference(String transactionReference);
 
-    boolean existsByEnrollment_IdAndAcademicFee_IdAndStatus(
-            UUID enrollmentId,
-            UUID academicFeeId,
-            PaymentStatus status
+    boolean existsByReferenceNumber(String referenceNumber);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0)
+            FROM Payment p
+            WHERE p.enrollment.id = :enrollmentId
+              AND p.academicFee.id = :academicFeeId
+              AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
+              AND (:excludePaymentId IS NULL OR p.id <> :excludePaymentId)
+            """)
+    BigDecimal sumCompletedAmountByEnrollmentAndAcademicFee(
+            @Param("enrollmentId") UUID enrollmentId,
+            @Param("academicFeeId") UUID academicFeeId,
+            @Param("excludePaymentId") UUID excludePaymentId
     );
 
     @Query("""
@@ -80,4 +91,30 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             ORDER BY p.paymentDate DESC, p.createdAt DESC
             """)
     List<Payment> findBySchoolIdOrdered(@Param("schoolId") UUID schoolId);
+
+    @Query("""
+            SELECT p FROM Payment p
+            JOIN FETCH p.enrollment e
+            JOIN FETCH e.student s
+            JOIN FETCH e.guardian g
+            JOIN FETCH e.academicYear ay
+            JOIN FETCH ay.school sch
+            JOIN FETCH e.classroom c
+            JOIN FETCH c.academicLevel al
+            LEFT JOIN FETCH c.academicSection sec
+            LEFT JOIN FETCH c.academicOption opt
+            LEFT JOIN FETCH c.classroomDesignation cd
+            LEFT JOIN FETCH e.photo ph
+            LEFT JOIN FETCH e.studentCategory stc
+            JOIN FETCH p.academicFee f
+            LEFT JOIN FETCH f.feeCategory fc
+            LEFT JOIN FETCH f.paymentInstallment pi
+            JOIN FETCH p.currencyRate cr
+            JOIN FETCH cr.sourceCurrency src
+            JOIN FETCH cr.targetCurrency tgt
+            WHERE p.receiptNumber = :receiptNumber
+              AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
+            ORDER BY f.name ASC, p.createdAt ASC
+            """)
+    List<Payment> findByReceiptNumberWithDetails(@Param("receiptNumber") String receiptNumber);
 }

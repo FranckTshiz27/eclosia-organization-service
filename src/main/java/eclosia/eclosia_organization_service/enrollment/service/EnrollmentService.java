@@ -7,6 +7,7 @@ import eclosia.eclosia_organization_service.city.repository.CityRepository;
 import eclosia.eclosia_organization_service.classroom.entity.Classroom;
 import eclosia.eclosia_organization_service.classroom.repository.ClassroomRepository;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
+import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
 import eclosia.eclosia_organization_service.commune.entity.Commune;
 import eclosia.eclosia_organization_service.commune.repository.CommuneRepository;
@@ -67,6 +68,7 @@ public class EnrollmentService {
     private final CityRepository cityRepository;
     private final CommuneRepository communeRepository;
     private final StudentCategoryRepository studentCategoryRepository;
+    private final EnrollmentFeeResolver enrollmentFeeResolver;
 
     @Transactional
     public Enrollment create(CreateEnrollmentDto dto, MultipartFile photoFile) {
@@ -137,13 +139,49 @@ public class EnrollmentService {
         return enrollments;
     }
 
+    @Transactional(readOnly = true)
+    public List<Enrollment> searchByStudentNameAndAcademicYearAndSchool(
+            String name,
+            UUID academicYearId,
+            UUID schoolId
+    ) {
+        String trimmedName = name != null ? name.trim() : "";
+        if (trimmedName.isEmpty()) {
+            throw new BadRequestException("Student name is required for search");
+        }
+
+        AcademicYear academicYear = resolveAcademicYear(academicYearId);
+        if (!schoolId.equals(academicYear.getSchoolId())) {
+            throw new BadRequestException("Academic year does not belong to the provided school");
+        }
+
+        List<Enrollment> enrollments = repository.searchByStudentNameAndAcademicYearAndSchool(
+                trimmedName,
+                academicYearId,
+                schoolId
+        );
+        enrollments.forEach(this::attachAcademicFees);
+        log.info(
+                "Enrollments searched - name: {}, academicYearId: {}, schoolId: {}, returned: {}",
+                trimmedName,
+                academicYearId,
+                schoolId,
+                enrollments.size()
+        );
+        return enrollments;
+    }
+
+    @Transactional(readOnly = true)
     public Enrollment findById(UUID id) {
-        return repository.findById(id)
+        Enrollment enrollment = repository.findByIdWithPaymentContext(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
+        attachAcademicFees(enrollment);
+        return enrollment;
     }
 
     public void delete(UUID id) {
-        Enrollment enrollment = findById(id);
+        Enrollment enrollment = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
         repository.delete(enrollment);
     }
 
@@ -338,5 +376,13 @@ public class EnrollmentService {
             throw new BadRequestException("Size must be greater than 0");
         }
         return PageRequest.of(page, size);
+    }
+
+    private void attachAcademicFees(Enrollment enrollment) {
+        if (enrollment.getStudentCategoryId() == null) {
+            throw new BusinessException("L'inscription doit avoir une catégorie d'élève pour récupérer les frais.");
+        }
+
+        enrollment.setAcademicFees(enrollmentFeeResolver.resolveFees(enrollment.getId()));
     }
 }

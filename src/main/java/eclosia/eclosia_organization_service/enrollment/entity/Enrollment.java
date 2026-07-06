@@ -1,6 +1,8 @@
 package eclosia.eclosia_organization_service.enrollment.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import eclosia.eclosia_organization_service.academic_fee.entity.AcademicFee;
 import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import eclosia.eclosia_organization_service.classroom.entity.Classroom;
 import eclosia.eclosia_organization_service.file.entity.FileResource;
@@ -16,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -23,6 +26,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -140,6 +144,15 @@ public class Enrollment {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /**
+     * Frais scolaires actifs correspondant au cycle, au niveau, a la section,
+     * a l'option, a la categorie d'eleve et a l'annee scolaire de l'inscription.
+     */
+    @Transient
+    @JsonProperty("academicFees")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    private List<AcademicFee> academicFees = List.of();
 
     @JsonProperty("studentId")
     public UUID getStudentId() {

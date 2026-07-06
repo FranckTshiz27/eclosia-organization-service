@@ -45,8 +45,12 @@ public class AcademicFeeController {
     @GetMapping
     public List<AcademicFee> findAll(
             @RequestParam(required = false) UUID schoolId,
-            @RequestParam(required = false) UUID academicYearId
+            @RequestParam(required = false) UUID academicYearId,
+            @RequestParam(required = false) UUID enrollmentId
     ) {
+        if (enrollmentId != null) {
+            return service.findByEnrollmentId(enrollmentId);
+        }
         if (schoolId != null && academicYearId != null) {
             return service.findBySchoolIdAndAcademicYearId(schoolId, academicYearId);
         }
@@ -54,6 +58,11 @@ public class AcademicFeeController {
             return service.findBySchoolId(schoolId);
         }
         return service.findAll();
+    }
+
+    @GetMapping("/by-enrollment/{enrollmentId}")
+    public List<AcademicFee> findByEnrollment(@PathVariable UUID enrollmentId) {
+        return service.findByEnrollmentId(enrollmentId);
     }
 
     @GetMapping("/{id}")

@@ -13,6 +13,7 @@ import java.util.UUID;
 @Data
 public class UpdatePaymentDto {
 
+    @NotNull(message = "Le taux de change est obligatoire")
     private UUID currencyRateId;
 
     @NotNull(message = "Le montant est obligatoire")
@@ -21,8 +22,6 @@ public class UpdatePaymentDto {
 
     @NotNull(message = "Le mode de paiement est obligatoire")
     private PaymentMethod paymentMethod;
-
-    private String referenceNumber;
 
     @NotNull(message = "Le statut est obligatoire")
     private PaymentStatus status;

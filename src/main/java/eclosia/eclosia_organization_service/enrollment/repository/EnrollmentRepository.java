@@ -60,13 +60,43 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
     @Query("""
             SELECT e
             FROM Enrollment e
+            JOIN FETCH e.student
             JOIN FETCH e.academicYear ay
             JOIN FETCH e.studentCategory sc
             JOIN FETCH e.classroom c
             JOIN FETCH c.academicLevel al
+            JOIN FETCH al.academicCycle
             LEFT JOIN FETCH c.academicSection sec
             LEFT JOIN FETCH c.academicOption opt
             WHERE e.id = :id
             """)
     Optional<Enrollment> findByIdWithPaymentContext(@Param("id") UUID id);
+
+    @Query("""
+            SELECT e
+            FROM Enrollment e
+            JOIN FETCH e.student s
+            JOIN FETCH e.studentCategory sc
+            JOIN FETCH e.academicYear ay
+            JOIN FETCH e.classroom c
+            JOIN FETCH c.academicLevel al
+            JOIN FETCH al.academicCycle
+            LEFT JOIN FETCH c.academicSection sec
+            LEFT JOIN FETCH c.academicOption opt
+            WHERE ay.id = :academicYearId
+              AND ay.school.id = :schoolId
+              AND (
+                  LOWER(s.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
+                  OR LOWER(s.firstName) LIKE LOWER(CONCAT('%', :name, '%'))
+                  OR LOWER(COALESCE(s.middleName, '')) LIKE LOWER(CONCAT('%', :name, '%'))
+                  OR LOWER(CONCAT(s.lastName, ' ', s.firstName)) LIKE LOWER(CONCAT('%', :name, '%'))
+                  OR LOWER(CONCAT(s.firstName, ' ', s.lastName)) LIKE LOWER(CONCAT('%', :name, '%'))
+              )
+            ORDER BY s.lastName ASC, s.firstName ASC
+            """)
+    List<Enrollment> searchByStudentNameAndAcademicYearAndSchool(
+            @Param("name") String name,
+            @Param("academicYearId") UUID academicYearId,
+            @Param("schoolId") UUID schoolId
+    );
 }

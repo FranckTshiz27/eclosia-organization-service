@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @CrossOrigin(origins = "*")
@@ -63,6 +64,15 @@ public class EnrollmentController {
     ) {
         Page<Enrollment> enrollments = service.findByAcademicYearAndSchool(academicYearId, schoolId, page, size);
         return PagedResponseDto.from(enrollments);
+    }
+
+    @GetMapping("/search")
+    public List<Enrollment> searchByStudentName(
+            @RequestParam String name,
+            @RequestParam UUID academicYearId,
+            @RequestParam UUID schoolId
+    ) {
+        return service.searchByStudentNameAndAcademicYearAndSchool(name, academicYearId, schoolId);
     }
 
     @GetMapping("/{id}")

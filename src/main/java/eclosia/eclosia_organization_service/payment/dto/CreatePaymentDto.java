@@ -19,6 +19,7 @@ public class CreatePaymentDto {
     @NotNull(message = "Le frais scolaire est obligatoire")
     private UUID academicFeeId;
 
+    @NotNull(message = "Le taux de change est obligatoire")
     private UUID currencyRateId;
 
     @NotNull(message = "Le montant est obligatoire")
@@ -27,8 +28,6 @@ public class CreatePaymentDto {
 
     @NotNull(message = "Le mode de paiement est obligatoire")
     private PaymentMethod paymentMethod;
-
-    private String referenceNumber;
 
     private PaymentStatus status;
 

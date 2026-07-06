@@ -17,6 +17,7 @@ import eclosia.eclosia_organization_service.academic_year.repository.AcademicYea
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.enrollment.service.EnrollmentFeeResolver;
 import eclosia.eclosia_organization_service.fee_category.entity.FeeCategory;
 import eclosia.eclosia_organization_service.fee_category.repository.FeeCategoryRepository;
 import eclosia.eclosia_organization_service.payment_installment.entity.PaymentInstallment;
@@ -65,6 +66,7 @@ public class AcademicFeeService {
     private final AcademicOptionRepository academicOptionRepository;
     private final PaymentInstallmentRepository paymentInstallmentRepository;
     private final StudentCategoryRepository studentCategoryRepository;
+    private final EnrollmentFeeResolver enrollmentFeeResolver;
 
     @Transactional
     public List<AcademicFee> createAll(List<CreateAcademicFeeDto> dtos) {
@@ -131,6 +133,10 @@ public class AcademicFeeService {
             throw new BadRequestException("Academic year does not belong to the provided school");
         }
         return repository.findBySchoolIdAndAcademicYearIdOrdered(schoolId, academicYearId);
+    }
+
+    public List<AcademicFee> findByEnrollmentId(UUID enrollmentId) {
+        return enrollmentFeeResolver.resolveFees(enrollmentId);
     }
 
     public AcademicFee findById(UUID id) {
