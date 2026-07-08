@@ -117,4 +117,34 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             ORDER BY f.name ASC, p.createdAt ASC
             """)
     List<Payment> findByReceiptNumberWithDetails(@Param("receiptNumber") String receiptNumber);
+
+    @Query("""
+            SELECT p FROM Payment p
+            JOIN FETCH p.enrollment e
+            JOIN FETCH e.student s
+            JOIN FETCH e.academicYear ay
+            JOIN FETCH e.classroom c
+            JOIN FETCH c.academicLevel al
+            JOIN FETCH al.academicCycle classCycle
+            LEFT JOIN FETCH c.academicSection sec
+            LEFT JOIN FETCH sec.academicCycle classSectionCycle
+            LEFT JOIN FETCH c.academicOption opt
+            LEFT JOIN FETCH c.classroomDesignation cd
+            JOIN FETCH p.academicFee f
+            JOIN FETCH f.feeCategory fc
+            JOIN FETCH f.academicCycle feeCycle
+            LEFT JOIN FETCH f.academicSection feeSection
+            LEFT JOIN FETCH feeSection.academicCycle feeSectionCycle
+            LEFT JOIN FETCH f.paymentInstallment pi
+            LEFT JOIN FETCH p.currencyRate cr
+            LEFT JOIN FETCH cr.sourceCurrency src
+            LEFT JOIN FETCH cr.targetCurrency tgt
+            WHERE ay.school.id = :schoolId
+              AND ay.id = :academicYearId
+            ORDER BY p.paymentDate DESC, p.createdAt ASC
+            """)
+    List<Payment> findJournalPaymentsWithDetails(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
 }

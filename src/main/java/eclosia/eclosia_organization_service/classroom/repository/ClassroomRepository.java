@@ -13,6 +13,14 @@ public interface ClassroomRepository extends JpaRepository<Classroom, UUID> {
     List<Classroom> findBySchool_IdOrderByClassroomDesignation_DisplayOrderAsc(UUID schoolId);
 
     @Query("""
+            SELECT c FROM Classroom c
+            JOIN FETCH c.academicLevel al
+            JOIN FETCH al.academicCycle ac
+            WHERE c.school.id = :schoolId
+            """)
+    List<Classroom> findBySchoolIdWithLevelAndCycle(@Param("schoolId") UUID schoolId);
+
+    @Query("""
             SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END
             FROM Classroom c
             WHERE c.school.id = :schoolId

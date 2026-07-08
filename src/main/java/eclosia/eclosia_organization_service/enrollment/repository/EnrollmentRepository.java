@@ -39,13 +39,15 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             JOIN FETCH e.classroom c
             JOIN FETCH c.classroomDesignation cd
             JOIN FETCH c.academicLevel al
+            JOIN FETCH al.academicCycle ac
             LEFT JOIN FETCH c.academicSection sec
             LEFT JOIN FETCH c.academicOption opt
             JOIN FETCH e.academicYear ay
             LEFT JOIN FETCH e.photo
             WHERE ay.id = :academicYearId
               AND ay.school.id = :schoolId
-            ORDER BY cd.displayOrder ASC,
+            ORDER BY COALESCE(ac.displayOrder, 2147483647), ac.code,
+                     cd.displayOrder ASC,
                      al.levelOrder ASC,
                      sec.displayOrder ASC,
                      opt.displayOrder ASC,

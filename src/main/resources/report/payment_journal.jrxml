@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="payment_journal"
+              pageWidth="842"
+              pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="16"
+              bottomMargin="16"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <style name="HeaderTitle" fontName="DejaVu Sans" fontSize="16" isBold="true" forecolor="#0B2447"/>
+    <style name="HeaderSub" fontName="DejaVu Sans" fontSize="9" forecolor="#1A56A8"/>
+    <style name="HeaderMeta" fontName="DejaVu Sans" fontSize="8" forecolor="#4A5568"/>
+    <style name="FilterLabel" fontName="DejaVu Sans" fontSize="7" forecolor="#5F6B7A"/>
+    <style name="FilterValue" fontName="DejaVu Sans" fontSize="7" isBold="true" forecolor="#0B2447"/>
+    <style name="GroupClass" fontName="DejaVu Sans" fontSize="9" isBold="true" forecolor="#0B2447"/>
+    <style name="GroupCycle" fontName="DejaVu Sans" fontSize="10" isBold="true" forecolor="#0B2447"/>
+    <style name="GroupCategory" fontName="DejaVu Sans" fontSize="8" isBold="true" forecolor="#5D4E37"/>
+    <style name="TableHeader" fontName="DejaVu Sans" fontSize="7" isBold="true" forecolor="#FFFFFF"/>
+    <style name="TableCell" fontName="DejaVu Sans" fontSize="7" forecolor="#243447"/>
+    <style name="SummaryTitle" fontName="DejaVu Sans" fontSize="8" isBold="true" forecolor="#1A56A8"/>
+    <style name="SummaryCell" fontName="DejaVu Sans" fontSize="7" forecolor="#243447"/>
+    <style name="GrandTotal" fontName="DejaVu Sans" fontSize="9" isBold="true" forecolor="#2E7D32"/>
+
+    <parameter name="LOGO_IMAGE" class="java.lang.Object"/>
+    <parameter name="SCHOOL_NAME" class="java.lang.String"/>
+    <parameter name="SCHOOL_ADDRESS" class="java.lang.String"/>
+    <parameter name="SCHOOL_PHONE" class="java.lang.String"/>
+    <parameter name="SCHOOL_EMAIL" class="java.lang.String"/>
+    <parameter name="ACADEMIC_YEAR_LABEL" class="java.lang.String"/>
+    <parameter name="PERIOD_LABEL" class="java.lang.String"/>
+    <parameter name="CLASS_FILTER_LABEL" class="java.lang.String"/>
+    <parameter name="CYCLE_FILTER_LABEL" class="java.lang.String"/>
+    <parameter name="FEE_CATEGORY_FILTER_LABEL" class="java.lang.String"/>
+    <parameter name="PAYMENT_METHOD_FILTER_LABEL" class="java.lang.String"/>
+    <parameter name="CURRENCY_FILTER_LABEL" class="java.lang.String"/>
+    <parameter name="REFERENCE_CURRENCY_CODE" class="java.lang.String"/>
+    <parameter name="PRINT_DATETIME" class="java.lang.String"/>
+    <parameter name="TOTAL_PAYMENTS" class="java.lang.Integer"/>
+    <parameter name="RECAP_CASH_USD" class="java.lang.String"/>
+    <parameter name="RECAP_CASH_CDF" class="java.lang.String"/>
+    <parameter name="RECAP_CASH_EUR" class="java.lang.String"/>
+    <parameter name="RECAP_CASH_TOTAL" class="java.lang.String"/>
+    <parameter name="RECAP_MOBILE_USD" class="java.lang.String"/>
+    <parameter name="RECAP_MOBILE_CDF" class="java.lang.String"/>
+    <parameter name="RECAP_MOBILE_EUR" class="java.lang.String"/>
+    <parameter name="RECAP_MOBILE_TOTAL" class="java.lang.String"/>
+    <parameter name="RECAP_BANK_USD" class="java.lang.String"/>
+    <parameter name="RECAP_BANK_CDF" class="java.lang.String"/>
+    <parameter name="RECAP_BANK_EUR" class="java.lang.String"/>
+    <parameter name="RECAP_BANK_TOTAL" class="java.lang.String"/>
+    <parameter name="RECAP_CURRENCY_USD" class="java.lang.String"/>
+    <parameter name="RECAP_CURRENCY_CDF" class="java.lang.String"/>
+    <parameter name="RECAP_CURRENCY_EUR" class="java.lang.String"/>
+    <parameter name="RECAP_CURRENCY_TOTAL_USD" class="java.lang.String"/>
+    <parameter name="GRAND_TOTAL_USD" class="java.lang.String"/>
+    <parameter name="GRAND_TOTAL_CDF" class="java.lang.String"/>
+    <parameter name="GRAND_TOTAL_EUR" class="java.lang.String"/>
+    <parameter name="GRAND_TOTAL_EQUIVALENT_USD" class="java.lang.String"/>
+
+    <field name="cycleName" class="java.lang.String"/>
+    <field name="cycleDisplayOrder" class="java.lang.Integer"/>
+    <field name="cyclePaymentCount" class="java.lang.Integer"/>
+    <field name="cycleTotalLabel" class="java.lang.String"/>
+    <field name="classroomName" class="java.lang.String"/>
+    <field name="feeCategoryName" class="java.lang.String"/>
+    <field name="categoryPaymentCount" class="java.lang.Integer"/>
+    <field name="categoryTotalLabel" class="java.lang.String"/>
+    <field name="classPaymentCount" class="java.lang.Integer"/>
+    <field name="classTotalLabel" class="java.lang.String"/>
+    <field name="rowNumber" class="java.lang.Integer"/>
+    <field name="paymentDate" class="java.lang.String"/>
+    <field name="createdAtLabel" class="java.lang.String"/>
+    <field name="receiptNumber" class="java.lang.String"/>
+    <field name="studentNumber" class="java.lang.String"/>
+    <field name="studentFullName" class="java.lang.String"/>
+    <field name="installmentLabel" class="java.lang.String"/>
+    <field name="paymentMethod" class="java.lang.String"/>
+    <field name="currencyCode" class="java.lang.String"/>
+    <field name="amountLabel" class="java.lang.String"/>
+    <field name="cashier" class="java.lang.String"/>
+    <field name="observation" class="java.lang.String"/>
+
+    <variable name="ROW_INDEX" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[Boolean.TRUE]]></variableExpression>
+    </variable>
+
+    <group name="CycleGroup">
+        <groupExpression><![CDATA[$F{cycleDisplayOrder} + "|" + $F{cycleName}]]></groupExpression>
+        <groupHeader>
+            <band height="24">
+                <rectangle radius="4">
+                    <reportElement x="0" y="2" width="802" height="20" mode="Opaque" backcolor="#C8E6C9"/>
+                    <graphicElement><pen lineWidth="0.5" lineColor="#81C784"/></graphicElement>
+                </rectangle>
+                <staticText>
+                    <reportElement x="10" y="6" width="12" height="12" forecolor="#2E7D32"/>
+                    <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                    <text><![CDATA[▾]]></text>
+                </staticText>
+                <textField>
+                    <reportElement style="GroupCycle" x="24" y="5" width="300" height="14"/>
+                    <textFieldExpression><![CDATA["CYCLE : " + $F{cycleName}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupClass" x="330" y="5" width="180" height="14"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Nombre de paiements : " + $F{cyclePaymentCount}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupClass" x="520" y="5" width="275" height="14"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Total cycle : " + $F{cycleTotalLabel}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+    </group>
+
+    <group name="FeeCategoryGroup">
+        <groupExpression><![CDATA[$F{cycleDisplayOrder} + "|" + $F{cycleName} + "|" + $F{feeCategoryName}]]></groupExpression>
+        <groupHeader>
+            <band height="24">
+                <rectangle radius="4">
+                    <reportElement x="0" y="2" width="802" height="20" mode="Opaque" backcolor="#D6E8F7"/>
+                    <graphicElement><pen lineWidth="0.5" lineColor="#7EB0E8"/></graphicElement>
+                </rectangle>
+                <staticText>
+                    <reportElement x="10" y="6" width="12" height="12" forecolor="#1A56A8"/>
+                    <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                    <text><![CDATA[▾]]></text>
+                </staticText>
+                <textField>
+                    <reportElement style="GroupClass" x="24" y="5" width="360" height="14"/>
+                    <textFieldExpression><![CDATA["CATÉGORIE DE FRAIS : " + $F{feeCategoryName}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupClass" x="430" y="5" width="180" height="14"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Nombre de paiements : " + $F{categoryPaymentCount}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupClass" x="615" y="5" width="180" height="14"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Total catégorie : " + $F{categoryTotalLabel}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+    </group>
+
+    <group name="ClassroomGroup">
+        <groupExpression><![CDATA[$F{cycleDisplayOrder} + "|" + $F{cycleName} + "|" + $F{feeCategoryName} + "|" + $F{classroomName}]]></groupExpression>
+        <groupHeader>
+            <band height="22">
+                <rectangle radius="3">
+                    <reportElement x="8" y="2" width="786" height="18" mode="Opaque" backcolor="#FFF8E1"/>
+                    <graphicElement><pen lineWidth="0.5" lineColor="#E6D5A8"/></graphicElement>
+                </rectangle>
+                <textField>
+                    <reportElement style="GroupCategory" x="18" y="5" width="420" height="12"/>
+                    <textFieldExpression><![CDATA["CLASSE : " + $F{classroomName}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupCategory" x="430" y="5" width="180" height="12"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Nombre de paiements : " + $F{classPaymentCount}]]></textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement style="GroupCategory" x="615" y="5" width="170" height="12"/>
+                    <textElement textAlignment="Right"/>
+                    <textFieldExpression><![CDATA["Sous-total classe : " + $F{classTotalLabel}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+    </group>
+
+    <title>
+        <band height="128">
+            <rectangle radius="6">
+                <reportElement x="0" y="0" width="802" height="118" mode="Opaque" backcolor="#FAFCFF"/>
+                <graphicElement><pen lineWidth="1.0" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+
+            <image onErrorType="Blank" scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
+                <reportElement x="12" y="12" width="64" height="64"/>
+                <imageExpression><![CDATA[$P{LOGO_IMAGE}]]></imageExpression>
+            </image>
+
+            <staticText>
+                <reportElement x="84" y="12" width="180" height="12" forecolor="#1E88E5"/>
+                <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                <text><![CDATA[ECLOSIA Gestion Scolaire]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="84" y="24" width="280" height="18" forecolor="#0B2447"/>
+                <textElement><font fontName="DejaVu Sans" size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{SCHOOL_NAME}.toUpperCase()]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="84" y="44" width="280" height="12" forecolor="#4A5568"/>
+                <textElement><font fontName="DejaVu Sans" size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{SCHOOL_ADDRESS}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="84" y="56" width="280" height="12" forecolor="#4A5568"/>
+                <textElement><font fontName="DejaVu Sans" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Tél : " + $P{SCHOOL_PHONE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="84" y="68" width="280" height="12" forecolor="#4A5568"/>
+                <textElement><font fontName="DejaVu Sans" size="7"/></textElement>
+                <textFieldExpression><![CDATA["Email : " + $P{SCHOOL_EMAIL}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="300" y="18" width="220" height="22" forecolor="#0B2447"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="16" isBold="true"/></textElement>
+                <text><![CDATA[JOURNAL DES PAIEMENTS]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="300" y="42" width="220" height="14" forecolor="#1A56A8"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Année scolaire : " + $P{ACADEMIC_YEAR_LABEL}]]></textFieldExpression>
+            </textField>
+
+            <rectangle radius="6">
+                <reportElement x="560" y="10" width="230" height="98" mode="Opaque" backcolor="#FFFFFF"/>
+                <graphicElement><pen lineWidth="1.0" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement style="FilterLabel" x="570" y="18" width="70" height="10"/><text><![CDATA[Période :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="18" width="140" height="10"/><textFieldExpression><![CDATA[$P{PERIOD_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="30" width="70" height="10"/><text><![CDATA[Cycle :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="30" width="140" height="10"/><textFieldExpression><![CDATA[$P{CYCLE_FILTER_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="42" width="70" height="10"/><text><![CDATA[Classe :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="42" width="140" height="10"/><textFieldExpression><![CDATA[$P{CLASS_FILTER_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="54" width="70" height="10"/><text><![CDATA[Catégorie :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="54" width="140" height="10"/><textFieldExpression><![CDATA[$P{FEE_CATEGORY_FILTER_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="66" width="70" height="10"/><text><![CDATA[Mode paiement :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="66" width="140" height="10"/><textFieldExpression><![CDATA[$P{PAYMENT_METHOD_FILTER_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="78" width="70" height="10"/><text><![CDATA[Devise :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="78" width="140" height="10"/><textFieldExpression><![CDATA[$P{CURRENCY_FILTER_LABEL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="FilterLabel" x="570" y="90" width="70" height="10"/><text><![CDATA[Imprimé le :]]></text></staticText>
+            <textField><reportElement style="FilterValue" x="640" y="90" width="140" height="10"/><textFieldExpression><![CDATA[$P{PRINT_DATETIME}]]></textFieldExpression></textField>
+        </band>
+    </title>
+
+    <pageHeader>
+        <band height="36">
+            <staticText>
+                <reportElement x="0" y="2" width="400" height="12" forecolor="#1A56A8"/>
+                <textElement><font fontName="DejaVu Sans" size="8"/></textElement>
+                <text><![CDATA[Regroupé par : Cycle  >  Catégorie de frais  >  Classe]]></text>
+            </staticText>
+            <rectangle radius="3">
+                <reportElement x="0" y="18" width="802" height="16" mode="Opaque" backcolor="#1565C0"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement style="TableHeader" x="4" y="20" width="24" height="12"/><textElement textAlignment="Center"/><text><![CDATA[N°]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="28" y="20" width="48" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Date]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="76" y="20" width="80" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Enregistré le]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="156" y="20" width="74" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[N° Reçu]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="230" y="20" width="54" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Matricule]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="284" y="20" width="94" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Élève]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="378" y="20" width="46" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Tranche]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="424" y="20" width="66" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Mode de paiement]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="490" y="20" width="36" height="12"/><textElement textAlignment="Center"/><text><![CDATA[Devise]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="526" y="20" width="58" height="12"/><textElement textAlignment="Right"><paragraph rightIndent="3"/></textElement><text><![CDATA[Montant]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="584" y="20" width="58" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Caissière]]></text></staticText>
+            <staticText><reportElement style="TableHeader" x="642" y="20" width="160" height="12"/><textElement><paragraph leftIndent="3"/></textElement><text><![CDATA[Observation]]></text></staticText>
+            <line><reportElement x="28" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="76" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="156" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="230" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="284" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="378" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="424" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="490" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="526" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="584" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+            <line><reportElement x="642" y="18" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#FFFFFF"/></graphicElement></line>
+        </band>
+    </pageHeader>
+
+    <detail>
+        <band height="18">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="16" mode="Opaque" backcolor="#FFFFFF"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
+            </rectangle>
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="16" mode="Opaque" backcolor="#F2F6FB">
+                    <printWhenExpression><![CDATA[$V{ROW_INDEX} % 2 == 0]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
+            </rectangle>
+            <line><reportElement x="0" y="15" width="802" height="1"/><graphicElement><pen lineWidth="0.3" lineColor="#DDE6F2"/></graphicElement></line>
+            <line><reportElement x="28" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="76" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="156" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="230" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="284" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="378" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="424" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="490" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="526" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="584" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+            <line><reportElement x="642" y="0" width="1" height="16"/><graphicElement><pen lineWidth="0.5" lineColor="#C5D9F2"/></graphicElement></line>
+
+            <textField><reportElement style="TableCell" x="4" y="2" width="24" height="12"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{rowNumber}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="28" y="2" width="48" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{paymentDate}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="76" y="2" width="80" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{createdAtLabel}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="156" y="2" width="74" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{receiptNumber}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="230" y="2" width="54" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{studentNumber}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="284" y="2" width="94" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{studentFullName}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="378" y="2" width="46" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{installmentLabel}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="424" y="2" width="66" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{paymentMethod}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="490" y="2" width="36" height="12"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{currencyCode}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="526" y="2" width="58" height="12"/><textElement textAlignment="Right"><paragraph rightIndent="3"/></textElement><textFieldExpression><![CDATA[$F{amountLabel}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="584" y="2" width="58" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{cashier}]]></textFieldExpression></textField>
+            <textField><reportElement style="TableCell" x="642" y="2" width="160" height="12"/><textElement><paragraph leftIndent="3"/></textElement><textFieldExpression><![CDATA[$F{observation}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+
+    <summary>
+        <band height="150">
+            <rectangle radius="6">
+                <reportElement x="0" y="8" width="260" height="118" mode="Opaque" backcolor="#FFFFFF"/>
+                <graphicElement><pen lineWidth="1.0" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement style="SummaryTitle" x="10" y="14" width="240" height="12"/>
+                <text><![CDATA[RÉCAPITULATIF PAR MODE DE PAIEMENT]]></text>
+            </staticText>
+            <rectangle>
+                <reportElement x="10" y="30" width="240" height="14" mode="Opaque" backcolor="#E3EEF9"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement style="SummaryCell" x="12" y="32" width="70" height="10"/><textElement><font isBold="true"/></textElement><text><![CDATA[Mode]]></text></staticText>
+            <staticText><reportElement style="SummaryCell" x="82" y="32" width="38" height="10"/><textElement textAlignment="Right"><font isBold="true"/></textElement><text><![CDATA[USD]]></text></staticText>
+            <staticText><reportElement style="SummaryCell" x="120" y="32" width="38" height="10"/><textElement textAlignment="Right"><font isBold="true"/></textElement><text><![CDATA[CDF]]></text></staticText>
+            <staticText><reportElement style="SummaryCell" x="158" y="32" width="38" height="10"/><textElement textAlignment="Right"><font isBold="true"/></textElement><text><![CDATA[EUR]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="196" y="32" width="50" height="10"/><textElement textAlignment="Right"><font isBold="true"/></textElement><textFieldExpression><![CDATA["Total " + $P{REFERENCE_CURRENCY_CODE}]]></textFieldExpression></textField>
+            <staticText><reportElement style="SummaryCell" x="12" y="48" width="70" height="10"/><text><![CDATA[Espèces]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="82" y="48" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CASH_USD}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="120" y="48" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CASH_CDF}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="158" y="48" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CASH_EUR}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="196" y="48" width="50" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CASH_TOTAL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="SummaryCell" x="12" y="60" width="70" height="10"/><text><![CDATA[Mobile Money]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="82" y="60" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_MOBILE_USD}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="120" y="60" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_MOBILE_CDF}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="158" y="60" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_MOBILE_EUR}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="196" y="60" width="50" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_MOBILE_TOTAL}]]></textFieldExpression></textField>
+            <staticText><reportElement style="SummaryCell" x="12" y="72" width="70" height="10"/><text><![CDATA[Banque]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="82" y="72" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_BANK_USD}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="120" y="72" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_BANK_CDF}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="158" y="72" width="38" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_BANK_EUR}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="196" y="72" width="50" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_BANK_TOTAL}]]></textFieldExpression></textField>
+
+            <rectangle radius="6">
+                <reportElement x="271" y="8" width="250" height="118" mode="Opaque" backcolor="#FFFFFF"/>
+                <graphicElement><pen lineWidth="1.0" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement style="SummaryTitle" x="281" y="14" width="230" height="12"/>
+                <text><![CDATA[RÉCAPITULATIF PAR DEVISE]]></text>
+            </staticText>
+            <rectangle>
+                <reportElement x="281" y="30" width="230" height="14" mode="Opaque" backcolor="#E3EEF9"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#A8C4E8"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement style="SummaryCell" x="283" y="32" width="60" height="10"/><textElement><font isBold="true"/></textElement><text><![CDATA[Devise]]></text></staticText>
+            <staticText><reportElement style="SummaryCell" x="343" y="32" width="80" height="10"/><textElement textAlignment="Right"><font isBold="true"/></textElement><text><![CDATA[Montant total]]></text></staticText>
+            <staticText><reportElement style="SummaryCell" x="283" y="50" width="60" height="10"/><text><![CDATA[USD]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="343" y="50" width="80" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CURRENCY_USD}]]></textFieldExpression></textField>
+            <staticText><reportElement style="SummaryCell" x="283" y="64" width="60" height="10"/><text><![CDATA[CDF]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="343" y="64" width="80" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CURRENCY_CDF}]]></textFieldExpression></textField>
+            <staticText><reportElement style="SummaryCell" x="283" y="78" width="60" height="10"/><text><![CDATA[EUR]]></text></staticText>
+            <textField><reportElement style="SummaryCell" x="343" y="78" width="80" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CURRENCY_EUR}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="283" y="96" width="120" height="10"/><textElement><font isBold="true"/></textElement><textFieldExpression><![CDATA["TOTAL (" + $P{REFERENCE_CURRENCY_CODE} + " équivalent)"]]></textFieldExpression></textField>
+            <textField><reportElement style="GrandTotal" x="403" y="96" width="100" height="10"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{RECAP_CURRENCY_TOTAL_USD}]]></textFieldExpression></textField>
+
+            <rectangle radius="6">
+                <reportElement x="532" y="8" width="270" height="118" mode="Opaque" backcolor="#F1F8F2"/>
+                <graphicElement><pen lineWidth="1.0" lineColor="#A5D6A7"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement style="SummaryTitle" x="542" y="14" width="250" height="12" forecolor="#2E7D32"/>
+                <text><![CDATA[TOTAL GÉNÉRAL]]></text>
+            </staticText>
+            <textField>
+                <reportElement style="SummaryCell" x="542" y="34" width="250" height="12"/>
+                <textFieldExpression><![CDATA["Nombre total de paiements : " + $P{TOTAL_PAYMENTS}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement style="SummaryCell" x="542" y="52" width="250" height="12"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Montant total encaissé]]></text>
+            </staticText>
+            <textField><reportElement style="SummaryCell" x="552" y="66" width="240" height="10"/><textFieldExpression><![CDATA["USD : " + $P{GRAND_TOTAL_USD}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="552" y="78" width="240" height="10"/><textFieldExpression><![CDATA["CDF : " + $P{GRAND_TOTAL_CDF}]]></textFieldExpression></textField>
+            <textField><reportElement style="SummaryCell" x="552" y="90" width="240" height="10"/><textFieldExpression><![CDATA["EUR : " + $P{GRAND_TOTAL_EUR}]]></textFieldExpression></textField>
+            <textField><reportElement style="GrandTotal" x="542" y="104" width="150" height="12"/><textFieldExpression><![CDATA["TOTAL GÉNÉRAL (" + $P{REFERENCE_CURRENCY_CODE} + " équivalent)"]]></textFieldExpression></textField>
+            <textField><reportElement style="GrandTotal" x="692" y="104" width="100" height="12"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$P{GRAND_TOTAL_EQUIVALENT_USD}]]></textFieldExpression></textField>
+
+            <textField>
+                <reportElement x="0" y="132" width="802" height="10" forecolor="#5F6B7A"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="6"/></textElement>
+                <textFieldExpression><![CDATA["NB : Les montants par devise sont affichés à titre informatif. L'équivalent est calculé dans la devise de référence de l'année scolaire (" + $P{REFERENCE_CURRENCY_CODE} + ") selon le taux du paiement."]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>
