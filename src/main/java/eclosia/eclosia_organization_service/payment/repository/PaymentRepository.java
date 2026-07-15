@@ -1,7 +1,9 @@
 package eclosia.eclosia_organization_service.payment.repository;
 
+import eclosia.eclosia_organization_service.finance.projection.CompletedPaymentProjection;
 import eclosia.eclosia_organization_service.payment.entity.Payment;
 import eclosia.eclosia_organization_service.payment.entity.PaymentStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -146,5 +148,88 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     List<Payment> findJournalPaymentsWithDetails(
             @Param("schoolId") UUID schoolId,
             @Param("academicYearId") UUID academicYearId
+    );
+
+    @Query("""
+            SELECT p.id AS paymentId,
+                   p.receiptNumber AS receiptNumber,
+                   e.id AS enrollmentId,
+                   c.id AS classroomId,
+                   f.id AS academicFeeId,
+                   fc.id AS feeCategoryId,
+                   fc.code AS feeCategoryCode,
+                   fc.name AS feeCategoryName,
+                   p.amount AS amount,
+                   p.paymentMethod AS paymentMethod,
+                   p.paymentDate AS paymentDate,
+                   p.createdAt AS createdAt,
+                   tgt.code AS targetCurrencyCode,
+                   src.code AS sourceCurrencyCode,
+                   cr.rate AS exchangeRate,
+                   s.id AS studentId,
+                   s.studentNumber AS studentNumber,
+                   s.lastName AS studentLastName,
+                   s.firstName AS studentFirstName,
+                   s.middleName AS studentMiddleName
+            FROM Payment p
+            JOIN p.enrollment e
+            JOIN e.student s
+            JOIN e.academicYear ay
+            JOIN e.classroom c
+            JOIN p.academicFee f
+            JOIN f.feeCategory fc
+            LEFT JOIN p.currencyRate cr
+            LEFT JOIN cr.targetCurrency tgt
+            LEFT JOIN cr.sourceCurrency src
+            WHERE ay.school.id = :schoolId
+              AND ay.id = :academicYearId
+              AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
+            ORDER BY p.paymentDate DESC, p.createdAt DESC
+            """)
+    List<CompletedPaymentProjection> findCompletedPaymentsForDashboard(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
+
+    @Query("""
+            SELECT p.id AS paymentId,
+                   p.receiptNumber AS receiptNumber,
+                   e.id AS enrollmentId,
+                   c.id AS classroomId,
+                   f.id AS academicFeeId,
+                   fc.id AS feeCategoryId,
+                   fc.code AS feeCategoryCode,
+                   fc.name AS feeCategoryName,
+                   p.amount AS amount,
+                   p.paymentMethod AS paymentMethod,
+                   p.paymentDate AS paymentDate,
+                   p.createdAt AS createdAt,
+                   tgt.code AS targetCurrencyCode,
+                   src.code AS sourceCurrencyCode,
+                   cr.rate AS exchangeRate,
+                   s.id AS studentId,
+                   s.studentNumber AS studentNumber,
+                   s.lastName AS studentLastName,
+                   s.firstName AS studentFirstName,
+                   s.middleName AS studentMiddleName
+            FROM Payment p
+            JOIN p.enrollment e
+            JOIN e.student s
+            JOIN e.academicYear ay
+            JOIN e.classroom c
+            JOIN p.academicFee f
+            JOIN f.feeCategory fc
+            LEFT JOIN p.currencyRate cr
+            LEFT JOIN cr.targetCurrency tgt
+            LEFT JOIN cr.sourceCurrency src
+            WHERE ay.school.id = :schoolId
+              AND ay.id = :academicYearId
+              AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
+            ORDER BY p.paymentDate DESC, p.createdAt DESC
+            """)
+    List<CompletedPaymentProjection> findRecentCompletedPaymentsForDashboard(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId,
+            Pageable pageable
     );
 }

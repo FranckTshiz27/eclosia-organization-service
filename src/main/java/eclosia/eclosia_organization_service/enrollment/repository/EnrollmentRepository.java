@@ -1,6 +1,7 @@
 package eclosia.eclosia_organization_service.enrollment.repository;
 
 import eclosia.eclosia_organization_service.enrollment.entity.Enrollment;
+import eclosia.eclosia_organization_service.finance.projection.EnrollmentExpectedProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -100,5 +101,83 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             @Param("name") String name,
             @Param("academicYearId") UUID academicYearId,
             @Param("schoolId") UUID schoolId
+    );
+
+    @Query(value = """
+            SELECT e.id AS enrollmentId,
+                   e.classroom_id AS classroomId,
+                   COALESCE(SUM(f.amount), 0) AS expectedAmount
+            FROM enrollments e
+            INNER JOIN classrooms c ON c.id = e.classroom_id
+            INNER JOIN academic_levels al ON al.id = c.academic_level_id
+            INNER JOIN academic_years ay ON ay.id = e.academic_year_id
+            LEFT JOIN academic_fees f ON (
+                f.active = true
+                AND e.student_category_id IS NOT NULL
+                AND f.school_id = ay.school_id
+                AND f.academic_year_id = e.academic_year_id
+                AND f.student_category_id = e.student_category_id
+                AND f.academic_cycle_id = al.academic_cycle_id
+                AND f.academic_level_id = al.id
+                AND f.academic_section_id IS NOT DISTINCT FROM c.academic_section_id
+                AND f.academic_option_id IS NOT DISTINCT FROM c.academic_option_id
+                AND (
+                    f.academic_option_id IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM academic_options ao
+                        WHERE ao.id = f.academic_option_id
+                          AND ao.academic_section_id IS NOT DISTINCT FROM c.academic_section_id
+                    )
+                )
+                AND (
+                    NOT COALESCE(al.requires_section, false)
+                    OR (
+                        f.academic_section_id IS NOT NULL
+                        AND c.academic_section_id IS NOT NULL
+                    )
+                )
+                AND (
+                    NOT COALESCE(al.requires_option, false)
+                    OR (
+                        f.academic_option_id IS NOT NULL
+                        AND c.academic_option_id IS NOT NULL
+                    )
+                )
+            )
+            WHERE ay.school_id = :schoolId
+              AND ay.id = :academicYearId
+              AND UPPER(e.status) = 'ACTIVE'
+            GROUP BY e.id, e.classroom_id
+            """, nativeQuery = true)
+    List<EnrollmentExpectedProjection> sumExpectedAmountsByEnrollment(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
+
+    @Query("""
+            SELECT COUNT(e)
+            FROM Enrollment e
+            JOIN e.academicYear ay
+            WHERE ay.school.id = :schoolId
+              AND ay.id = :academicYearId
+              AND UPPER(e.status) = 'ACTIVE'
+            """)
+    long countActiveBySchoolAndAcademicYear(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT e.classroom.id)
+            FROM Enrollment e
+            JOIN e.academicYear ay
+            WHERE ay.school.id = :schoolId
+              AND ay.id = :academicYearId
+              AND UPPER(e.status) = 'ACTIVE'
+            """)
+    long countDistinctActiveClassroomsBySchoolAndAcademicYear(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
     );
 }

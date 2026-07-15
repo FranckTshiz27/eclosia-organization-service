@@ -42,12 +42,14 @@ public interface AcademicFeeRepository extends JpaRepository<AcademicFee, UUID> 
             JOIN FETCH f.academicCycle c
             JOIN FETCH f.academicLevel l
             LEFT JOIN FETCH f.paymentInstallment pi
+            LEFT JOIN FETCH f.academicSection sec
+            LEFT JOIN FETCH f.academicOption opt
             JOIN FETCH f.feeCategory fc
             JOIN FETCH f.studentCategory sc
             WHERE f.school.id = :schoolId
               AND f.academicYear.id = :academicYearId
             ORDER BY COALESCE(c.displayOrder, 2147483647), c.code,
-                     l.levelOrder, COALESCE(pi.displayOrder, -1), fc.code, sc.code
+                     fc.code, l.levelOrder, sc.code, COALESCE(pi.displayOrder, -1)
             """)
     List<AcademicFee> findBySchoolIdAndAcademicYearIdOrdered(
             @Param("schoolId") UUID schoolId,
@@ -168,4 +170,27 @@ public interface AcademicFeeRepository extends JpaRepository<AcademicFee, UUID> 
               )
             """, nativeQuery = true)
     List<UUID> findMatchingFeeIdsByEnrollmentId(@Param("enrollmentId") UUID enrollmentId);
+
+    @Query("""
+            SELECT COUNT(f)
+            FROM AcademicFee f
+            WHERE f.school.id = :schoolId
+              AND f.academicYear.id = :academicYearId
+            """)
+    long countBySchoolIdAndAcademicYearId(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT f.paymentInstallment.id)
+            FROM AcademicFee f
+            WHERE f.school.id = :schoolId
+              AND f.academicYear.id = :academicYearId
+              AND f.paymentInstallment IS NOT NULL
+            """)
+    long countDistinctInstallmentsBySchoolIdAndAcademicYearId(
+            @Param("schoolId") UUID schoolId,
+            @Param("academicYearId") UUID academicYearId
+    );
 }
