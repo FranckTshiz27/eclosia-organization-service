@@ -38,6 +38,7 @@ public class AcademicCurriculumController {
 
     @GetMapping
     public List<AcademicCurriculum> findAll(
+            @RequestParam(required = false) UUID academicYearId,
             @RequestParam(required = false) UUID countryId,
             @RequestParam(required = false) UUID academicCycleId,
             @RequestParam(required = false) UUID academicLevelId
@@ -47,6 +48,9 @@ public class AcademicCurriculumController {
         }
         if (academicCycleId != null) {
             return service.findByAcademicCycleId(academicCycleId);
+        }
+        if (academicYearId != null) {
+            return service.findByAcademicYearId(academicYearId);
         }
         if (countryId != null) {
             return service.findByCountryId(countryId);

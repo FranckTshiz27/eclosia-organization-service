@@ -1,9 +1,9 @@
-package eclosia.eclosia_organization_service.subject.controller;
+package eclosia.eclosia_organization_service.subject_domain.controller;
 
-import eclosia.eclosia_organization_service.subject.dto.CreateSubjectDto;
-import eclosia.eclosia_organization_service.subject.dto.UpdateSubjectDto;
-import eclosia.eclosia_organization_service.subject.entity.Subject;
-import eclosia.eclosia_organization_service.subject.service.SubjectService;
+import eclosia.eclosia_organization_service.subject_domain.dto.CreateSubjectDomainDto;
+import eclosia.eclosia_organization_service.subject_domain.dto.UpdateSubjectDomainDto;
+import eclosia.eclosia_organization_service.subject_domain.entity.SubjectDomain;
+import eclosia.eclosia_organization_service.subject_domain.service.SubjectDomainService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,30 +24,20 @@ import java.util.UUID;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping(path = "subject")
+@RequestMapping(path = "subject-domain")
 @RequiredArgsConstructor
-public class SubjectController {
+public class SubjectDomainController {
 
-    private final SubjectService service;
+    private final SubjectDomainService service;
 
     @PostMapping
-    public ResponseEntity<Subject> create(@Valid @RequestBody CreateSubjectDto dto) {
-        Subject subject = service.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(subject);
+    public ResponseEntity<SubjectDomain> create(@Valid @RequestBody CreateSubjectDomainDto dto) {
+        SubjectDomain subjectDomain = service.create(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(subjectDomain);
     }
 
     @GetMapping
-    public List<Subject> findAll(
-            @RequestParam(required = false) UUID countryId,
-            @RequestParam(required = false) UUID subjectDomainId,
-            @RequestParam(required = false) UUID subjectSubDomainId
-    ) {
-        if (subjectSubDomainId != null) {
-            return service.findBySubjectSubDomainId(subjectSubDomainId);
-        }
-        if (subjectDomainId != null) {
-            return service.findBySubjectDomainId(subjectDomainId);
-        }
+    public List<SubjectDomain> findAll(@RequestParam(required = false) UUID countryId) {
         if (countryId != null) {
             return service.findByCountryId(countryId);
         }
@@ -55,14 +45,14 @@ public class SubjectController {
     }
 
     @GetMapping("/{id}")
-    public Subject findById(@PathVariable UUID id) {
+    public SubjectDomain findById(@PathVariable UUID id) {
         return service.findById(id);
     }
 
     @PutMapping("/{id}")
-    public Subject update(
+    public SubjectDomain update(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateSubjectDto dto
+            @Valid @RequestBody UpdateSubjectDomainDto dto
     ) {
         return service.update(id, dto);
     }

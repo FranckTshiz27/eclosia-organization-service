@@ -5,6 +5,7 @@ import eclosia.eclosia_organization_service.academic_year.repository.AcademicYea
 import eclosia.eclosia_organization_service.classroom.entity.Classroom;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
 import eclosia.eclosia_organization_service.enrollment.entity.Enrollment;
 import eclosia.eclosia_organization_service.enrollment.repository.EnrollmentRepository;
 import eclosia.eclosia_organization_service.report.dto.EnrollmentByClassReportRowDto;
@@ -54,9 +55,7 @@ public class EnrollmentReportService {
         AcademicYear academicYear = academicYearRepository.findById(academicYearId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
 
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to provided school");
-        }
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
 
         List<Enrollment> enrollments = enrollmentRepository.findForSchoolAndAcademicYearReport(academicYearId, schoolId);
         List<EnrollmentByClassReportRowDto> rows = mapRows(enrollments);

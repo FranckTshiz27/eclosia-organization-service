@@ -2,12 +2,9 @@ package eclosia.eclosia_organization_service.academic_year.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import eclosia.eclosia_organization_service.school.entity.School;
-import eclosia.eclosia_organization_service.school_academic_model.entity.SchoolAcademicModel;
+import eclosia.eclosia_organization_service.country.entity.Country;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -30,8 +27,8 @@ import java.util.UUID;
         name = "academic_years",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_school_academic_year_code",
-                        columnNames = {"school_id", "code"}
+                        name = "uk_country_academic_year_code",
+                        columnNames = {"country_id", "code"}
                 )
         }
 )
@@ -41,8 +38,16 @@ public class AcademicYear {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "country_id", nullable = false)
+    private Country country;
+
     @Column(nullable = false, length = 20)
     private String code;
+
+    @Column(nullable = false, length = 100)
+    private String name;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -51,24 +56,7 @@ public class AcademicYear {
     private LocalDate endDate;
 
     @Column(nullable = false)
-    private Boolean current = false;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private AcademicYearStatus status;
-
-    @Column(length = 500)
-    private String description;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "school_id", nullable = false)
-    private School school;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "school_academic_model_id", nullable = false)
-    private SchoolAcademicModel schoolAcademicModel;
+    private Boolean active = true;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -78,13 +66,8 @@ public class AcademicYear {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @JsonProperty("schoolId")
-    public UUID getSchoolId() {
-        return school != null ? school.getId() : null;
-    }
-
-    @JsonProperty("schoolAcademicModelId")
-    public UUID getSchoolAcademicModelId() {
-        return schoolAcademicModel != null ? schoolAcademicModel.getId() : null;
+    @JsonProperty("countryId")
+    public UUID getCountryId() {
+        return country != null ? country.getId() : null;
     }
 }

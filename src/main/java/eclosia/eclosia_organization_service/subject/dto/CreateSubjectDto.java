@@ -12,6 +12,10 @@ public class CreateSubjectDto {
     @NotNull(message = "Country id is required")
     private UUID countryId;
 
+    private UUID subjectDomainId;
+
+    private UUID subjectSubDomainId;
+
     @NotBlank(message = "Code is required")
     private String code;
 
@@ -19,8 +23,6 @@ public class CreateSubjectDto {
     private String name;
 
     private String abbreviation;
-
-    private UUID parentSubjectId;
 
     private Integer displayOrder;
 

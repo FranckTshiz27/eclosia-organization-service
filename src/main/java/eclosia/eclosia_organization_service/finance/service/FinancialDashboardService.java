@@ -8,6 +8,7 @@ import eclosia.eclosia_organization_service.classroom.repository.ClassroomReposi
 import eclosia.eclosia_organization_service.classroom.service.ClassroomNamingService;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
 import eclosia.eclosia_organization_service.currency.entity.Currency;
 import eclosia.eclosia_organization_service.enrollment.repository.EnrollmentRepository;
 import eclosia.eclosia_organization_service.finance.dto.ArrearsSummaryDto;
@@ -23,6 +24,7 @@ import eclosia.eclosia_organization_service.finance.projection.CompletedPaymentP
 import eclosia.eclosia_organization_service.finance.projection.EnrollmentExpectedProjection;
 import eclosia.eclosia_organization_service.payment.entity.PaymentMethod;
 import eclosia.eclosia_organization_service.payment.repository.PaymentRepository;
+import eclosia.eclosia_organization_service.school.entity.School;
 import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
 import eclosia.eclosia_organization_service.school_currency.repository.SchoolCurrencyRepository;
 import lombok.RequiredArgsConstructor;
@@ -74,14 +76,11 @@ public class FinancialDashboardService {
         if (schoolId == null || academicYearId == null) {
             throw new BadRequestException("schoolId et academicYearId sont obligatoires");
         }
-        if (!schoolRepository.existsById(schoolId)) {
-            throw new ResourceNotFoundException("School not found");
-        }
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found"));
         AcademicYear academicYear = academicYearRepository.findById(academicYearId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to provided school");
-        }
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
 
         Currency referenceCurrency = schoolCurrencyRepository.findActiveDefaultBySchoolId(schoolId)
                 .map(schoolCurrency -> schoolCurrency.getCurrency())

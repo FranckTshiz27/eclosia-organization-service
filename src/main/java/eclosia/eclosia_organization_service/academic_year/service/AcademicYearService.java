@@ -7,10 +7,10 @@ import eclosia.eclosia_organization_service.academic_year.repository.AcademicYea
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.country.entity.Country;
+import eclosia.eclosia_organization_service.country.repository.CountryRepository;
 import eclosia.eclosia_organization_service.school.entity.School;
 import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
-import eclosia.eclosia_organization_service.school_academic_model.entity.SchoolAcademicModel;
-import eclosia.eclosia_organization_service.school_academic_model.repository.SchoolAcademicModelRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,23 +25,24 @@ import java.util.UUID;
 public class AcademicYearService {
 
     private final AcademicYearRepository repository;
+    private final CountryRepository countryRepository;
     private final SchoolRepository schoolRepository;
-    private final SchoolAcademicModelRepository schoolAcademicModelRepository;
 
     @Transactional
     public AcademicYear create(CreateAcademicYearDto dto) {
-        validateCodeUniqueness(dto.getSchoolId(), dto.getCode(), null);
+        validateCodeUniqueness(dto.getCountryId(), dto.getCode(), null);
         validateDateRange(dto.getStartDate(), dto.getEndDate());
 
-        School school = resolveSchool(dto.getSchoolId());
-        SchoolAcademicModel schoolAcademicModel = resolveSchoolAcademicModel(dto.getSchoolAcademicModelId());
-        validateSchoolAcademicModelOwnership(school.getId(), schoolAcademicModel);
-
         AcademicYear academicYear = new AcademicYear();
-        mapFromDto(academicYear, dto.getCode(), dto.getStartDate(), dto.getEndDate(),
-                dto.getCurrent(), dto.getStatus(), dto.getDescription(), school, schoolAcademicModel);
-
-        deactivateOtherCurrentYears(school.getId(), null, academicYear.getCurrent());
+        mapFromDto(
+                academicYear,
+                dto.getCountryId(),
+                dto.getCode(),
+                dto.getName(),
+                dto.getStartDate(),
+                dto.getEndDate(),
+                dto.getActive()
+        );
         return repository.save(academicYear);
     }
 
@@ -49,12 +50,16 @@ public class AcademicYearService {
         return repository.findAll();
     }
 
-    public List<AcademicYear> findBySchoolId(UUID schoolId) {
-        return repository.findBySchool_IdOrderByStartDateDesc(schoolId);
+    public List<AcademicYear> findByCountryId(UUID countryId) {
+        return repository.findByCountry_IdOrderByStartDateDesc(countryId);
     }
 
-    public List<AcademicYear> findBySchoolAcademicModelId(UUID schoolAcademicModelId) {
-        return repository.findBySchoolAcademicModel_IdOrderByStartDateDesc(schoolAcademicModelId);
+    public List<AcademicYear> findBySchoolId(UUID schoolId) {
+        School school = resolveSchool(schoolId);
+        if (school.getCountryId() == null) {
+            throw new BadRequestException("School has no country configured");
+        }
+        return findByCountryId(school.getCountryId());
     }
 
     public AcademicYear findById(UUID id) {
@@ -66,17 +71,18 @@ public class AcademicYearService {
     public AcademicYear update(UUID id, UpdateAcademicYearDto dto) {
         AcademicYear academicYear = findById(id);
 
-        validateCodeUniqueness(dto.getSchoolId(), dto.getCode(), id);
+        validateCodeUniqueness(dto.getCountryId(), dto.getCode(), id);
         validateDateRange(dto.getStartDate(), dto.getEndDate());
 
-        School school = resolveSchool(dto.getSchoolId());
-        SchoolAcademicModel schoolAcademicModel = resolveSchoolAcademicModel(dto.getSchoolAcademicModelId());
-        validateSchoolAcademicModelOwnership(school.getId(), schoolAcademicModel);
-
-        mapFromDto(academicYear, dto.getCode(), dto.getStartDate(), dto.getEndDate(),
-                dto.getCurrent(), dto.getStatus(), dto.getDescription(), school, schoolAcademicModel);
-
-        deactivateOtherCurrentYears(school.getId(), id, academicYear.getCurrent());
+        mapFromDto(
+                academicYear,
+                dto.getCountryId(),
+                dto.getCode(),
+                dto.getName(),
+                dto.getStartDate(),
+                dto.getEndDate(),
+                dto.getActive()
+        );
         return repository.save(academicYear);
     }
 
@@ -85,16 +91,16 @@ public class AcademicYearService {
         repository.delete(academicYear);
     }
 
-    private void validateCodeUniqueness(UUID schoolId, String code, UUID excludeId) {
+    private void validateCodeUniqueness(UUID countryId, String code, UUID excludeId) {
         if (excludeId == null) {
-            if (repository.existsBySchool_IdAndCode(schoolId, code)) {
-                throw new BadRequestException("Academic year code already exists for this school");
+            if (repository.existsByCountry_IdAndCode(countryId, code)) {
+                throw new BadRequestException("Academic year code already exists for this country");
             }
             return;
         }
 
-        if (repository.existsBySchool_IdAndCodeAndIdNot(schoolId, code, excludeId)) {
-            throw new BadRequestException("Academic year code already exists for this school");
+        if (repository.existsByCountry_IdAndCodeAndIdNot(countryId, code, excludeId)) {
+            throw new BadRequestException("Academic year code already exists for this country");
         }
     }
 
@@ -104,53 +110,30 @@ public class AcademicYearService {
         }
     }
 
-    private void validateSchoolAcademicModelOwnership(UUID schoolId, SchoolAcademicModel schoolAcademicModel) {
-        if (!schoolId.equals(schoolAcademicModel.getSchoolId())) {
-            throw new BusinessException("This school academic model does not belong to this school");
-        }
-    }
-
-    private void deactivateOtherCurrentYears(UUID schoolId, UUID currentId, Boolean current) {
-        if (!Boolean.TRUE.equals(current)) {
-            return;
-        }
-
-        List<AcademicYear> otherCurrentYears = currentId == null
-                ? repository.findBySchool_IdAndCurrentTrue(schoolId)
-                : repository.findBySchool_IdAndCurrentTrueAndIdNot(schoolId, currentId);
-
-        otherCurrentYears.forEach(year -> year.setCurrent(false));
-        repository.saveAll(otherCurrentYears);
-    }
-
     private void mapFromDto(
             AcademicYear academicYear,
+            UUID countryId,
             String code,
+            String name,
             java.time.LocalDate startDate,
             java.time.LocalDate endDate,
-            Boolean current,
-            eclosia.eclosia_organization_service.academic_year.entity.AcademicYearStatus status,
-            String description,
-            School school,
-            SchoolAcademicModel schoolAcademicModel
+            Boolean active
     ) {
+        academicYear.setCountry(resolveCountry(countryId));
         academicYear.setCode(code);
+        academicYear.setName(name);
         academicYear.setStartDate(startDate);
         academicYear.setEndDate(endDate);
-        academicYear.setCurrent(current != null ? current : false);
-        academicYear.setStatus(status);
-        academicYear.setDescription(description);
-        academicYear.setSchool(school);
-        academicYear.setSchoolAcademicModel(schoolAcademicModel);
+        academicYear.setActive(active != null ? active : true);
+    }
+
+    private Country resolveCountry(UUID countryId) {
+        return countryRepository.findById(countryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
     }
 
     private School resolveSchool(UUID schoolId) {
         return schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found"));
-    }
-
-    private SchoolAcademicModel resolveSchoolAcademicModel(UUID schoolAcademicModelId) {
-        return schoolAcademicModelRepository.findById(schoolAcademicModelId)
-                .orElseThrow(() -> new ResourceNotFoundException("School academic model not found"));
     }
 }

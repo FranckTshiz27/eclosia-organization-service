@@ -8,15 +8,9 @@ import java.util.UUID;
 
 public interface AcademicYearRepository extends JpaRepository<AcademicYear, UUID> {
 
-    boolean existsBySchool_IdAndCode(UUID schoolId, String code);
+    boolean existsByCountry_IdAndCode(UUID countryId, String code);
 
-    boolean existsBySchool_IdAndCodeAndIdNot(UUID schoolId, String code, UUID id);
+    boolean existsByCountry_IdAndCodeAndIdNot(UUID countryId, String code, UUID id);
 
-    List<AcademicYear> findBySchool_IdOrderByStartDateDesc(UUID schoolId);
-
-    List<AcademicYear> findBySchoolAcademicModel_IdOrderByStartDateDesc(UUID schoolAcademicModelId);
-
-    List<AcademicYear> findBySchool_IdAndCurrentTrue(UUID schoolId);
-
-    List<AcademicYear> findBySchool_IdAndCurrentTrueAndIdNot(UUID schoolId, UUID id);
+    List<AcademicYear> findByCountry_IdOrderByStartDateDesc(UUID countryId);
 }

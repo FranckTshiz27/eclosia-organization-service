@@ -1,10 +1,8 @@
-package eclosia.eclosia_organization_service.subject.entity;
+package eclosia.eclosia_organization_service.subject_sub_domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import eclosia.eclosia_organization_service.country.entity.Country;
 import eclosia.eclosia_organization_service.subject_domain.entity.SubjectDomain;
-import eclosia.eclosia_organization_service.subject_sub_domain.entity.SubjectSubDomain;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -25,15 +23,15 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(
-        name = "subjects",
+        name = "subject_sub_domains",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_country_subject_code",
-                        columnNames = {"country_id", "code"}
+                        name = "uk_subject_sub_domain_code",
+                        columnNames = {"subject_domain_id", "code"}
                 )
         }
 )
-public class Subject {
+public class SubjectSubDomain {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -41,27 +39,14 @@ public class Subject {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "country_id", nullable = false)
-    private Country country;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_domain_id")
+    @JoinColumn(name = "subject_domain_id", nullable = false)
     private SubjectDomain subjectDomain;
-
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subject_sub_domain_id")
-    private SubjectSubDomain subjectSubDomain;
 
     @Column(nullable = false, length = 20)
     private String code;
 
     @Column(nullable = false, length = 150)
     private String name;
-
-    @Column(length = 20)
-    private String abbreviation;
 
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 1;
@@ -77,18 +62,8 @@ public class Subject {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @JsonProperty("countryId")
-    public UUID getCountryId() {
-        return country != null ? country.getId() : null;
-    }
-
     @JsonProperty("subjectDomainId")
     public UUID getSubjectDomainId() {
         return subjectDomain != null ? subjectDomain.getId() : null;
-    }
-
-    @JsonProperty("subjectSubDomainId")
-    public UUID getSubjectSubDomainId() {
-        return subjectSubDomain != null ? subjectSubDomain.getId() : null;
     }
 }

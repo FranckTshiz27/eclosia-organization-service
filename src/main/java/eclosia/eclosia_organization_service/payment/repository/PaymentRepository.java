@@ -86,10 +86,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     @Query("""
             SELECT p FROM Payment p
             JOIN FETCH p.enrollment e
+            JOIN FETCH e.classroom c
             JOIN FETCH e.academicYear ay
             JOIN FETCH p.academicFee f
             LEFT JOIN FETCH p.currencyRate cr
-            WHERE ay.school.id = :schoolId
+            WHERE c.school.id = :schoolId
             ORDER BY p.paymentDate DESC, p.createdAt DESC
             """)
     List<Payment> findBySchoolIdOrdered(@Param("schoolId") UUID schoolId);
@@ -100,8 +101,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             JOIN FETCH e.student s
             JOIN FETCH e.guardian g
             JOIN FETCH e.academicYear ay
-            JOIN FETCH ay.school sch
             JOIN FETCH e.classroom c
+            JOIN FETCH c.school sch
             JOIN FETCH c.academicLevel al
             LEFT JOIN FETCH c.academicSection sec
             LEFT JOIN FETCH c.academicOption opt
@@ -141,7 +142,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             LEFT JOIN FETCH p.currencyRate cr
             LEFT JOIN FETCH cr.sourceCurrency src
             LEFT JOIN FETCH cr.targetCurrency tgt
-            WHERE ay.school.id = :schoolId
+            WHERE c.school.id = :schoolId
               AND ay.id = :academicYearId
             ORDER BY p.paymentDate DESC, p.createdAt ASC
             """)
@@ -181,7 +182,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             LEFT JOIN p.currencyRate cr
             LEFT JOIN cr.targetCurrency tgt
             LEFT JOIN cr.sourceCurrency src
-            WHERE ay.school.id = :schoolId
+            WHERE c.school.id = :schoolId
               AND ay.id = :academicYearId
               AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
             ORDER BY p.paymentDate DESC, p.createdAt DESC
@@ -222,7 +223,7 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             LEFT JOIN p.currencyRate cr
             LEFT JOIN cr.targetCurrency tgt
             LEFT JOIN cr.sourceCurrency src
-            WHERE ay.school.id = :schoolId
+            WHERE c.school.id = :schoolId
               AND ay.id = :academicYearId
               AND p.status = eclosia.eclosia_organization_service.payment.entity.PaymentStatus.COMPLETED
             ORDER BY p.paymentDate DESC, p.createdAt DESC

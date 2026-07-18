@@ -88,7 +88,7 @@ public class PaymentReportService {
 
         Payment firstPayment = payments.getFirst();
         Enrollment enrollment = firstPayment.getEnrollment();
-        School school = enrollment.getAcademicYear().getSchool();
+        School school = enrollment.getClassroom().getSchool();
         CurrencyRate currencyRate = firstPayment.getCurrencyRate();
 
         List<PaymentReceiptRowDto> rows = mapRows(payments);

@@ -38,14 +38,14 @@ public class AcademicYearController {
 
     @GetMapping
     public List<AcademicYear> findAll(
-            @RequestParam(required = false) UUID schoolId,
-            @RequestParam(required = false) UUID schoolAcademicModelId
+            @RequestParam(required = false) UUID countryId,
+            @RequestParam(required = false) UUID schoolId
     ) {
+        if (countryId != null) {
+            return service.findByCountryId(countryId);
+        }
         if (schoolId != null) {
             return service.findBySchoolId(schoolId);
-        }
-        if (schoolAcademicModelId != null) {
-            return service.findBySchoolAcademicModelId(schoolAcademicModelId);
         }
         return service.findAll();
     }

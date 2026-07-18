@@ -9,6 +9,7 @@ import eclosia.eclosia_organization_service.classroom.repository.ClassroomReposi
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
 import eclosia.eclosia_organization_service.commune.entity.Commune;
 import eclosia.eclosia_organization_service.commune.repository.CommuneRepository;
 import eclosia.eclosia_organization_service.country.entity.Country;
@@ -20,6 +21,8 @@ import eclosia.eclosia_organization_service.file.entity.FileResource;
 import eclosia.eclosia_organization_service.file.repository.FileResourceRepository;
 import eclosia.eclosia_organization_service.guardian.entity.Guardian;
 import eclosia.eclosia_organization_service.guardian.repository.GuardianRepository;
+import eclosia.eclosia_organization_service.school.entity.School;
+import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
 import eclosia.eclosia_organization_service.student.entity.Student;
 import eclosia.eclosia_organization_service.student.repository.StudentRepository;
 import eclosia.eclosia_organization_service.student_category.entity.StudentCategory;
@@ -68,6 +71,7 @@ public class EnrollmentService {
     private final CityRepository cityRepository;
     private final CommuneRepository communeRepository;
     private final StudentCategoryRepository studentCategoryRepository;
+    private final SchoolRepository schoolRepository;
     private final EnrollmentFeeResolver enrollmentFeeResolver;
 
     @Transactional
@@ -123,11 +127,14 @@ public class EnrollmentService {
     public Page<Enrollment> findByAcademicYearAndSchool(UUID academicYearId, UUID schoolId, int page, int size) {
         Pageable pageable = buildPageable(page, size);
         AcademicYear academicYear = resolveAcademicYear(academicYearId);
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to the provided school");
-        }
+        School school = resolveSchool(schoolId);
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
 
-        Page<Enrollment> enrollments = repository.findByAcademicYear_IdOrderByCreatedAtDesc(academicYearId, pageable);
+        Page<Enrollment> enrollments = repository.findByAcademicYear_IdAndClassroom_School_IdOrderByCreatedAtDesc(
+                academicYearId,
+                schoolId,
+                pageable
+        );
         log.info(
                 "Enrollments fetched - academicYearId: {}, schoolId: {}, page: {}, size: {}, returned: {}",
                 academicYearId,
@@ -151,9 +158,8 @@ public class EnrollmentService {
         }
 
         AcademicYear academicYear = resolveAcademicYear(academicYearId);
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to the provided school");
-        }
+        School school = resolveSchool(schoolId);
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
 
         List<Enrollment> enrollments = repository.searchByStudentNameAndAcademicYearAndSchool(
                 trimmedName,
@@ -244,16 +250,17 @@ public class EnrollmentService {
     ) {
         UUID guardianSchoolId = guardian.getSchoolId();
         UUID classroomSchoolId = classroom.getSchoolId();
-        UUID academicYearSchoolId = academicYear.getSchoolId();
         UUID studentCategorySchoolId = studentCategory.getSchoolId();
 
         if (!guardianSchoolId.equals(classroomSchoolId)
-                || !guardianSchoolId.equals(academicYearSchoolId)
                 || !guardianSchoolId.equals(studentCategorySchoolId)) {
             throw new BadRequestException(
-                    "Guardian, classroom, academic year and student category must belong to the same school"
+                    "Guardian, classroom and student category must belong to the same school"
             );
         }
+
+        School school = resolveSchool(classroomSchoolId);
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
     }
 
     private Guardian resolveGuardian(UUID guardianId) {
@@ -269,6 +276,11 @@ public class EnrollmentService {
     private AcademicYear resolveAcademicYear(UUID academicYearId) {
         return academicYearRepository.findById(academicYearId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
+    }
+
+    private School resolveSchool(UUID schoolId) {
+        return schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new ResourceNotFoundException("School not found"));
     }
 
     private StudentCategory resolveStudentCategory(UUID studentCategoryId) {

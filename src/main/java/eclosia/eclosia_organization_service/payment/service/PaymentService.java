@@ -165,7 +165,7 @@ public class PaymentService {
         AcademicFee academicFee = academicFeeRepository.findById(academicFeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Academic fee not found"));
 
-        UUID schoolId = enrollment.getAcademicYear().getSchoolId();
+        UUID schoolId = enrollment.getClassroom().getSchoolId();
         if (!schoolId.equals(academicFee.getSchoolId())) {
             throw new BadRequestException("Le frais scolaire n'appartient pas à l'école de l'inscription");
         }
@@ -203,7 +203,7 @@ public class PaymentService {
     }
 
     private void validateCurrencyRate(Enrollment enrollment, CurrencyRate currencyRate) {
-        UUID schoolId = enrollment.getAcademicYear().getSchoolId();
+        UUID schoolId = enrollment.getClassroom().getSchoolId();
         if (!schoolId.equals(currencyRate.getSchoolId())) {
             throw new BadRequestException("Le taux de change n'appartient pas à l'école de l'inscription");
         }

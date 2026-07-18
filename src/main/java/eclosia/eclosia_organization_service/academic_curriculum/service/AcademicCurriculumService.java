@@ -12,10 +12,11 @@ import eclosia.eclosia_organization_service.academic_option.entity.AcademicOptio
 import eclosia.eclosia_organization_service.academic_option.repository.AcademicOptionRepository;
 import eclosia.eclosia_organization_service.academic_section.entity.AcademicSection;
 import eclosia.eclosia_organization_service.academic_section.repository.AcademicSectionRepository;
+import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
+import eclosia.eclosia_organization_service.academic_year.repository.AcademicYearRepository;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
+import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
-import eclosia.eclosia_organization_service.country.entity.Country;
-import eclosia.eclosia_organization_service.country.repository.CountryRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,7 @@ import java.util.UUID;
 public class AcademicCurriculumService {
 
     private final AcademicCurriculumRepository repository;
-    private final CountryRepository countryRepository;
+    private final AcademicYearRepository academicYearRepository;
     private final AcademicCycleRepository academicCycleRepository;
     private final AcademicLevelRepository academicLevelRepository;
     private final AcademicSectionRepository academicSectionRepository;
@@ -37,7 +38,7 @@ public class AcademicCurriculumService {
 
     public AcademicCurriculum create(CreateAcademicCurriculumDto dto) {
         assertUniqueCurriculum(
-                dto.getCountryId(),
+                dto.getAcademicYearId(),
                 dto.getAcademicCycleId(),
                 dto.getAcademicLevelId(),
                 dto.getAcademicSectionId(),
@@ -48,11 +49,13 @@ public class AcademicCurriculumService {
         AcademicCurriculum academicCurriculum = new AcademicCurriculum();
         mapFromDto(
                 academicCurriculum,
-                dto.getCountryId(),
+                dto.getAcademicYearId(),
                 dto.getAcademicCycleId(),
                 dto.getAcademicLevelId(),
                 dto.getAcademicSectionId(),
                 dto.getAcademicOptionId(),
+                dto.getCode(),
+                dto.getName(),
                 dto.getActive()
         );
         return repository.save(academicCurriculum);
@@ -62,8 +65,12 @@ public class AcademicCurriculumService {
         return repository.findAll();
     }
 
+    public List<AcademicCurriculum> findByAcademicYearId(UUID academicYearId) {
+        return repository.findByAcademicYear_Id(academicYearId);
+    }
+
     public List<AcademicCurriculum> findByCountryId(UUID countryId) {
-        return repository.findByCountry_Id(countryId);
+        return repository.findByAcademicYear_Country_Id(countryId);
     }
 
     public List<AcademicCurriculum> findByAcademicCycleId(UUID academicCycleId) {
@@ -83,7 +90,7 @@ public class AcademicCurriculumService {
         AcademicCurriculum academicCurriculum = findById(id);
 
         assertUniqueCurriculum(
-                dto.getCountryId(),
+                dto.getAcademicYearId(),
                 dto.getAcademicCycleId(),
                 dto.getAcademicLevelId(),
                 dto.getAcademicSectionId(),
@@ -93,11 +100,13 @@ public class AcademicCurriculumService {
 
         mapFromDto(
                 academicCurriculum,
-                dto.getCountryId(),
+                dto.getAcademicYearId(),
                 dto.getAcademicCycleId(),
                 dto.getAcademicLevelId(),
                 dto.getAcademicSectionId(),
                 dto.getAcademicOptionId(),
+                dto.getCode(),
+                dto.getName(),
                 dto.getActive()
         );
         return repository.save(academicCurriculum);
@@ -109,7 +118,7 @@ public class AcademicCurriculumService {
     }
 
     private void assertUniqueCurriculum(
-            UUID countryId,
+            UUID academicYearId,
             UUID academicCycleId,
             UUID academicLevelId,
             UUID academicSectionId,
@@ -118,9 +127,9 @@ public class AcademicCurriculumService {
     ) {
         boolean exists = id == null
                 ? repository.existsByCurriculumKeys(
-                        countryId, academicCycleId, academicLevelId, academicSectionId, academicOptionId)
+                        academicYearId, academicCycleId, academicLevelId, academicSectionId, academicOptionId)
                 : repository.existsByCurriculumKeysAndIdNot(
-                        countryId, academicCycleId, academicLevelId, academicSectionId, academicOptionId, id);
+                        academicYearId, academicCycleId, academicLevelId, academicSectionId, academicOptionId, id);
 
         if (exists) {
             throw new BadRequestException("Academic curriculum already exists for this combination");
@@ -129,24 +138,95 @@ public class AcademicCurriculumService {
 
     private void mapFromDto(
             AcademicCurriculum academicCurriculum,
-            UUID countryId,
+            UUID academicYearId,
             UUID academicCycleId,
             UUID academicLevelId,
             UUID academicSectionId,
             UUID academicOptionId,
+            String code,
+            String name,
             Boolean active
     ) {
-        academicCurriculum.setCountry(resolveCountry(countryId));
-        academicCurriculum.setAcademicCycle(resolveAcademicCycle(academicCycleId));
-        academicCurriculum.setAcademicLevel(resolveAcademicLevel(academicLevelId));
-        academicCurriculum.setAcademicSection(resolveAcademicSection(academicSectionId));
-        academicCurriculum.setAcademicOption(resolveAcademicOption(academicOptionId));
+        AcademicYear academicYear = resolveAcademicYear(academicYearId);
+        AcademicCycle academicCycle = resolveAcademicCycle(academicCycleId);
+        AcademicLevel academicLevel = resolveAcademicLevel(academicLevelId);
+        AcademicSection academicSection = resolveAcademicSection(academicSectionId);
+        AcademicOption academicOption = resolveAcademicOption(academicOptionId);
+
+        validateAcademicStructure(
+                academicCycle,
+                academicLevel,
+                academicSection,
+                academicOption,
+                academicSectionId,
+                academicOptionId
+        );
+
+        academicCurriculum.setAcademicYear(academicYear);
+        academicCurriculum.setAcademicCycle(academicCycle);
+        academicCurriculum.setAcademicLevel(academicLevel);
+        academicCurriculum.setAcademicSection(academicSection);
+        academicCurriculum.setAcademicOption(academicOption);
+        academicCurriculum.setCode(code);
+        academicCurriculum.setName(name);
         academicCurriculum.setActive(active != null ? active : true);
     }
 
-    private Country resolveCountry(UUID countryId) {
-        return countryRepository.findById(countryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
+    private void validateAcademicStructure(
+            AcademicCycle academicCycle,
+            AcademicLevel academicLevel,
+            AcademicSection academicSection,
+            AcademicOption academicOption,
+            UUID academicSectionId,
+            UUID academicOptionId
+    ) {
+        if (!academicCycle.getId().equals(academicLevel.getAcademicCycle().getId())) {
+            throw new BadRequestException("Academic level does not belong to the provided academic cycle");
+        }
+
+        validateLevelSectionAndOption(academicLevel, academicSectionId, academicOptionId);
+
+        if (academicSection != null
+                && !academicCycle.getId().equals(academicSection.getAcademicCycle().getId())) {
+            throw new BadRequestException("Academic section does not belong to the provided academic cycle");
+        }
+
+        if (academicOptionId != null && academicSectionId == null) {
+            throw new BusinessException("Une section est requise pour associer une option.");
+        }
+
+        if (academicOption != null
+                && academicSection != null
+                && !academicSection.getId().equals(academicOption.getAcademicSection().getId())) {
+            throw new BadRequestException("Academic option does not belong to the provided academic section");
+        }
+    }
+
+    private void validateLevelSectionAndOption(
+            AcademicLevel level,
+            UUID academicSectionId,
+            UUID academicOptionId
+    ) {
+        if (Boolean.TRUE.equals(level.getRequiresSection()) && academicSectionId == null) {
+            throw new BusinessException("Une section est obligatoire.");
+        }
+
+        if (!Boolean.TRUE.equals(level.getRequiresSection()) && academicSectionId != null) {
+            throw new BusinessException("Ce niveau n'accepte pas de section.");
+        }
+
+        if (Boolean.TRUE.equals(level.getRequiresOption()) && academicOptionId == null) {
+            throw new BusinessException("Une option est obligatoire.");
+        }
+
+        if (!Boolean.TRUE.equals(level.getRequiresOption()) && academicOptionId != null) {
+            throw new BusinessException("Ce niveau n'accepte pas d'option.");
+        }
+    }
+
+    private AcademicYear resolveAcademicYear(UUID academicYearId) {
+        return academicYearRepository.findById(academicYearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
     }
 
     private AcademicCycle resolveAcademicCycle(UUID academicCycleId) {

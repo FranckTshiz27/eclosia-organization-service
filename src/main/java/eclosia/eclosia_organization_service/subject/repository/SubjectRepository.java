@@ -14,5 +14,7 @@ public interface SubjectRepository extends JpaRepository<Subject, UUID> {
 
     List<Subject> findByCountry_IdOrderByDisplayOrderAsc(UUID countryId);
 
-    List<Subject> findByParentSubject_IdOrderByDisplayOrderAsc(UUID parentSubjectId);
+    List<Subject> findBySubjectDomain_IdOrderByDisplayOrderAsc(UUID subjectDomainId);
+
+    List<Subject> findBySubjectSubDomain_IdOrderByDisplayOrderAsc(UUID subjectSubDomainId);
 }

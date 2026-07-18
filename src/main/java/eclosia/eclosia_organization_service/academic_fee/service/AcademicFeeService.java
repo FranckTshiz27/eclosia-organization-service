@@ -17,6 +17,7 @@ import eclosia.eclosia_organization_service.academic_year.repository.AcademicYea
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
 import eclosia.eclosia_organization_service.enrollment.service.EnrollmentFeeResolver;
 import eclosia.eclosia_organization_service.fee_category.entity.FeeCategory;
 import eclosia.eclosia_organization_service.fee_category.repository.FeeCategoryRepository;
@@ -129,9 +130,8 @@ public class AcademicFeeService {
 
     public List<AcademicFee> findBySchoolIdAndAcademicYearId(UUID schoolId, UUID academicYearId) {
         AcademicYear academicYear = resolveAcademicYear(academicYearId);
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to the provided school");
-        }
+        School school = resolveSchool(schoolId);
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
         return repository.findBySchoolIdAndAcademicYearIdOrdered(schoolId, academicYearId);
     }
 
@@ -382,9 +382,8 @@ public class AcademicFeeService {
             StudentCategory studentCategory,
             PaymentInstallment paymentInstallment
     ) {
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year does not belong to the provided school");
-        }
+        School school = resolveSchool(schoolId);
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
         if (!schoolId.equals(feeCategory.getSchoolId())) {
             throw new BadRequestException("Fee category does not belong to the provided school");
         }

@@ -10,6 +10,7 @@ import eclosia.eclosia_organization_service.classroom.repository.ClassroomReposi
 import eclosia.eclosia_organization_service.classroom.service.ClassroomNamingService;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
+import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
 import eclosia.eclosia_organization_service.currency.entity.Currency;
 import eclosia.eclosia_organization_service.currency_rate.entity.CurrencyRate;
 import eclosia.eclosia_organization_service.enrollment.entity.Enrollment;
@@ -129,14 +130,11 @@ public class PaymentRecoveryReportService {
             throw new BadRequestException("Au moins une tranche doit etre selectionnee");
         }
 
-        AcademicYear academicYear = academicYearRepository.findById(academicYearId)
-                .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
-        if (!schoolId.equals(academicYear.getSchoolId())) {
-            throw new BadRequestException("Academic year ne correspond pas a la school");
-        }
-
         School school = schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found"));
+        AcademicYear academicYear = academicYearRepository.findById(academicYearId)
+                .orElseThrow(() -> new ResourceNotFoundException("Academic year not found"));
+        AcademicYearCountryValidator.requireSameCountry(school, academicYear);
 
         Currency referenceCurrency = resolveReferenceCurrency(schoolId);
         String referenceCurrencyCode = referenceCurrency.getCode();

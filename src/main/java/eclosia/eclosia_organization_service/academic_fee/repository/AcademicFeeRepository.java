@@ -138,7 +138,7 @@ public interface AcademicFeeRepository extends JpaRepository<AcademicFee, UUID> 
             INNER JOIN academic_years ay ON ay.id = e.academic_year_id
             WHERE f.active = true
               AND e.student_category_id IS NOT NULL
-              AND f.school_id = ay.school_id
+              AND f.school_id = c.school_id
               AND f.academic_year_id = e.academic_year_id
               AND f.student_category_id = e.student_category_id
               AND f.academic_cycle_id = al.academic_cycle_id

@@ -6,7 +6,7 @@ import eclosia.eclosia_organization_service.academic_cycle.entity.AcademicCycle;
 import eclosia.eclosia_organization_service.academic_level.entity.AcademicLevel;
 import eclosia.eclosia_organization_service.academic_option.entity.AcademicOption;
 import eclosia.eclosia_organization_service.academic_section.entity.AcademicSection;
-import eclosia.eclosia_organization_service.country.entity.Country;
+import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -30,9 +30,9 @@ import java.util.UUID;
         name = "academic_curriculums",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_curriculum",
+                        name = "uk_academic_curriculum",
                         columnNames = {
-                                "country_id",
+                                "academic_year_id",
                                 "academic_cycle_id",
                                 "academic_level_id",
                                 "academic_section_id",
@@ -49,8 +49,8 @@ public class AcademicCurriculum {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "country_id", nullable = false)
-    private Country country;
+    @JoinColumn(name = "academic_year_id", nullable = false)
+    private AcademicYear academicYear;
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
@@ -72,6 +72,12 @@ public class AcademicCurriculum {
     @JoinColumn(name = "academic_option_id")
     private AcademicOption academicOption;
 
+    @Column(nullable = false, length = 30)
+    private String code;
+
+    @Column(nullable = false, length = 200)
+    private String name;
+
     @Column(nullable = false)
     private Boolean active = true;
 
@@ -83,9 +89,9 @@ public class AcademicCurriculum {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @JsonProperty("countryId")
-    public UUID getCountryId() {
-        return country != null ? country.getId() : null;
+    @JsonProperty("academicYearId")
+    public UUID getAcademicYearId() {
+        return academicYear != null ? academicYear.getId() : null;
     }
 
     @JsonProperty("academicCycleId")

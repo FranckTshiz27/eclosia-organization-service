@@ -8,6 +8,10 @@ import eclosia.eclosia_organization_service.subject.dto.CreateSubjectDto;
 import eclosia.eclosia_organization_service.subject.dto.UpdateSubjectDto;
 import eclosia.eclosia_organization_service.subject.entity.Subject;
 import eclosia.eclosia_organization_service.subject.repository.SubjectRepository;
+import eclosia.eclosia_organization_service.subject_domain.entity.SubjectDomain;
+import eclosia.eclosia_organization_service.subject_domain.repository.SubjectDomainRepository;
+import eclosia.eclosia_organization_service.subject_sub_domain.entity.SubjectSubDomain;
+import eclosia.eclosia_organization_service.subject_sub_domain.repository.SubjectSubDomainRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,8 @@ public class SubjectService {
 
     private final SubjectRepository repository;
     private final CountryRepository countryRepository;
+    private final SubjectDomainRepository subjectDomainRepository;
+    private final SubjectSubDomainRepository subjectSubDomainRepository;
 
     public Subject create(CreateSubjectDto dto) {
         if (repository.existsByCountry_IdAndCode(dto.getCountryId(), dto.getCode())) {
@@ -31,12 +37,12 @@ public class SubjectService {
         Subject subject = new Subject();
         mapFromDto(
                 subject,
-                null,
                 dto.getCountryId(),
+                dto.getSubjectDomainId(),
+                dto.getSubjectSubDomainId(),
                 dto.getCode(),
                 dto.getName(),
                 dto.getAbbreviation(),
-                dto.getParentSubjectId(),
                 dto.getDisplayOrder(),
                 dto.getActive()
         );
@@ -51,8 +57,12 @@ public class SubjectService {
         return repository.findByCountry_IdOrderByDisplayOrderAsc(countryId);
     }
 
-    public List<Subject> findByParentSubjectId(UUID parentSubjectId) {
-        return repository.findByParentSubject_IdOrderByDisplayOrderAsc(parentSubjectId);
+    public List<Subject> findBySubjectDomainId(UUID subjectDomainId) {
+        return repository.findBySubjectDomain_IdOrderByDisplayOrderAsc(subjectDomainId);
+    }
+
+    public List<Subject> findBySubjectSubDomainId(UUID subjectSubDomainId) {
+        return repository.findBySubjectSubDomain_IdOrderByDisplayOrderAsc(subjectSubDomainId);
     }
 
     public Subject findById(UUID id) {
@@ -69,12 +79,12 @@ public class SubjectService {
 
         mapFromDto(
                 subject,
-                id,
                 dto.getCountryId(),
+                dto.getSubjectDomainId(),
+                dto.getSubjectSubDomainId(),
                 dto.getCode(),
                 dto.getName(),
                 dto.getAbbreviation(),
-                dto.getParentSubjectId(),
                 dto.getDisplayOrder(),
                 dto.getActive()
         );
@@ -88,21 +98,29 @@ public class SubjectService {
 
     private void mapFromDto(
             Subject subject,
-            UUID subjectId,
             UUID countryId,
+            UUID subjectDomainId,
+            UUID subjectSubDomainId,
             String code,
             String name,
             String abbreviation,
-            UUID parentSubjectId,
             Integer displayOrder,
             Boolean active
     ) {
         Country country = resolveCountry(countryId);
+        SubjectDomain subjectDomain = resolveSubjectDomain(subjectDomainId, countryId);
+        SubjectSubDomain subjectSubDomain = resolveSubjectSubDomain(
+                subjectSubDomainId,
+                subjectDomainId,
+                subjectDomain
+        );
+
         subject.setCountry(country);
+        subject.setSubjectDomain(subjectDomain);
+        subject.setSubjectSubDomain(subjectSubDomain);
         subject.setCode(code);
         subject.setName(name);
         subject.setAbbreviation(abbreviation);
-        subject.setParentSubject(resolveParentSubject(parentSubjectId, subjectId, countryId));
         subject.setDisplayOrder(displayOrder != null ? displayOrder : 1);
         subject.setActive(active != null ? active : true);
     }
@@ -112,21 +130,41 @@ public class SubjectService {
                 .orElseThrow(() -> new ResourceNotFoundException("Country not found"));
     }
 
-    private Subject resolveParentSubject(UUID parentSubjectId, UUID subjectId, UUID countryId) {
-        if (parentSubjectId == null) {
+    private SubjectDomain resolveSubjectDomain(UUID subjectDomainId, UUID countryId) {
+        if (subjectDomainId == null) {
             return null;
         }
 
-        if (parentSubjectId.equals(subjectId)) {
-            throw new BadRequestException("A subject cannot be its own parent");
+        SubjectDomain subjectDomain = subjectDomainRepository.findById(subjectDomainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject domain not found"));
+
+        if (!countryId.equals(subjectDomain.getCountryId())) {
+            throw new BadRequestException("Subject domain must belong to the same country");
         }
 
-        Subject parentSubject = findById(parentSubjectId);
+        return subjectDomain;
+    }
 
-        if (!countryId.equals(parentSubject.getCountryId())) {
-            throw new BadRequestException("Parent subject must belong to the same country");
+    private SubjectSubDomain resolveSubjectSubDomain(
+            UUID subjectSubDomainId,
+            UUID subjectDomainId,
+            SubjectDomain subjectDomain
+    ) {
+        if (subjectSubDomainId == null) {
+            return null;
         }
 
-        return parentSubject;
+        if (subjectDomain == null) {
+            throw new BadRequestException("Subject domain is required when subject sub domain is provided");
+        }
+
+        SubjectSubDomain subjectSubDomain = subjectSubDomainRepository.findById(subjectSubDomainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subject sub domain not found"));
+
+        if (!subjectDomainId.equals(subjectSubDomain.getSubjectDomainId())) {
+            throw new BadRequestException("Subject sub domain must belong to the selected subject domain");
+        }
+
+        return subjectSubDomain;
     }
 }

@@ -20,7 +20,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
 
     Page<Enrollment> findByAcademicYear_IdOrderByCreatedAtDesc(UUID academicYearId, Pageable pageable);
 
-    Page<Enrollment> findByAcademicYear_IdAndAcademicYear_School_IdOrderByCreatedAtDesc(
+    Page<Enrollment> findByAcademicYear_IdAndClassroom_School_IdOrderByCreatedAtDesc(
             UUID academicYearId,
             UUID schoolId,
             Pageable pageable
@@ -46,7 +46,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             JOIN FETCH e.academicYear ay
             LEFT JOIN FETCH e.photo
             WHERE ay.id = :academicYearId
-              AND ay.school.id = :schoolId
+              AND c.school.id = :schoolId
             ORDER BY COALESCE(ac.displayOrder, 2147483647), ac.code,
                      cd.displayOrder ASC,
                      al.levelOrder ASC,
@@ -87,7 +87,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             LEFT JOIN FETCH c.academicSection sec
             LEFT JOIN FETCH c.academicOption opt
             WHERE ay.id = :academicYearId
-              AND ay.school.id = :schoolId
+              AND c.school.id = :schoolId
               AND (
                   LOWER(s.lastName) LIKE LOWER(CONCAT('%', :name, '%'))
                   OR LOWER(s.firstName) LIKE LOWER(CONCAT('%', :name, '%'))
@@ -114,7 +114,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             LEFT JOIN academic_fees f ON (
                 f.active = true
                 AND e.student_category_id IS NOT NULL
-                AND f.school_id = ay.school_id
+                AND f.school_id = c.school_id
                 AND f.academic_year_id = e.academic_year_id
                 AND f.student_category_id = e.student_category_id
                 AND f.academic_cycle_id = al.academic_cycle_id
@@ -145,7 +145,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
                     )
                 )
             )
-            WHERE ay.school_id = :schoolId
+            WHERE c.school_id = :schoolId
               AND ay.id = :academicYearId
               AND UPPER(e.status) = 'ACTIVE'
             GROUP BY e.id, e.classroom_id
@@ -159,7 +159,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             SELECT COUNT(e)
             FROM Enrollment e
             JOIN e.academicYear ay
-            WHERE ay.school.id = :schoolId
+            JOIN e.classroom c
+            WHERE c.school.id = :schoolId
               AND ay.id = :academicYearId
               AND UPPER(e.status) = 'ACTIVE'
             """)
@@ -172,7 +173,8 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, UUID> {
             SELECT COUNT(DISTINCT e.classroom.id)
             FROM Enrollment e
             JOIN e.academicYear ay
-            WHERE ay.school.id = :schoolId
+            JOIN e.classroom c
+            WHERE c.school.id = :schoolId
               AND ay.id = :academicYearId
               AND UPPER(e.status) = 'ACTIVE'
             """)

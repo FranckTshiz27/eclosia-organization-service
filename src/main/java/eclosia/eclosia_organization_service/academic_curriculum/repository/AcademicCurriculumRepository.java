@@ -13,7 +13,7 @@ public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurr
     @Query("""
             SELECT CASE WHEN COUNT(c) > 0 THEN TRUE ELSE FALSE END
             FROM AcademicCurriculum c
-            WHERE c.country.id = :countryId
+            WHERE c.academicYear.id = :academicYearId
               AND c.academicCycle.id = :academicCycleId
               AND c.academicLevel.id = :academicLevelId
               AND ((:academicSectionId IS NULL AND c.academicSection IS NULL)
@@ -22,7 +22,7 @@ public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurr
                    OR c.academicOption.id = :academicOptionId)
             """)
     boolean existsByCurriculumKeys(
-            @Param("countryId") UUID countryId,
+            @Param("academicYearId") UUID academicYearId,
             @Param("academicCycleId") UUID academicCycleId,
             @Param("academicLevelId") UUID academicLevelId,
             @Param("academicSectionId") UUID academicSectionId,
@@ -32,7 +32,7 @@ public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurr
     @Query("""
             SELECT CASE WHEN COUNT(c) > 0 THEN TRUE ELSE FALSE END
             FROM AcademicCurriculum c
-            WHERE c.country.id = :countryId
+            WHERE c.academicYear.id = :academicYearId
               AND c.academicCycle.id = :academicCycleId
               AND c.academicLevel.id = :academicLevelId
               AND ((:academicSectionId IS NULL AND c.academicSection IS NULL)
@@ -42,7 +42,7 @@ public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurr
               AND c.id <> :id
             """)
     boolean existsByCurriculumKeysAndIdNot(
-            @Param("countryId") UUID countryId,
+            @Param("academicYearId") UUID academicYearId,
             @Param("academicCycleId") UUID academicCycleId,
             @Param("academicLevelId") UUID academicLevelId,
             @Param("academicSectionId") UUID academicSectionId,
@@ -50,7 +50,9 @@ public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurr
             @Param("id") UUID id
     );
 
-    List<AcademicCurriculum> findByCountry_Id(UUID countryId);
+    List<AcademicCurriculum> findByAcademicYear_Id(UUID academicYearId);
+
+    List<AcademicCurriculum> findByAcademicYear_Country_Id(UUID countryId);
 
     List<AcademicCurriculum> findByAcademicCycle_Id(UUID academicCycleId);
 
