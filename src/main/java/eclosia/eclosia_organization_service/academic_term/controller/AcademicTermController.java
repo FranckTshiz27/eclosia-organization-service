@@ -1,9 +1,9 @@
-package eclosia.eclosia_organization_service.academic_period.controller;
+package eclosia.eclosia_organization_service.academic_term.controller;
 
-import eclosia.eclosia_organization_service.academic_period.dto.CreateAcademicPeriodDto;
-import eclosia.eclosia_organization_service.academic_period.dto.UpdateAcademicPeriodDto;
-import eclosia.eclosia_organization_service.academic_period.entity.AcademicPeriod;
-import eclosia.eclosia_organization_service.academic_period.service.AcademicPeriodService;
+import eclosia.eclosia_organization_service.academic_term.dto.CreateAcademicTermDto;
+import eclosia.eclosia_organization_service.academic_term.dto.UpdateAcademicTermDto;
+import eclosia.eclosia_organization_service.academic_term.entity.AcademicTerm;
+import eclosia.eclosia_organization_service.academic_term.service.AcademicTermService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,35 +24,35 @@ import java.util.UUID;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping(path = "academic-period")
+@RequestMapping(path = "academic-term")
 @RequiredArgsConstructor
-public class AcademicPeriodController {
+public class AcademicTermController {
 
-    private final AcademicPeriodService service;
+    private final AcademicTermService service;
 
     @PostMapping
-    public ResponseEntity<AcademicPeriod> create(@Valid @RequestBody CreateAcademicPeriodDto dto) {
-        AcademicPeriod academicPeriod = service.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(academicPeriod);
+    public ResponseEntity<AcademicTerm> create(@Valid @RequestBody CreateAcademicTermDto dto) {
+        AcademicTerm academicTerm = service.create(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(academicTerm);
     }
 
     @GetMapping
-    public List<AcademicPeriod> findAll(@RequestParam(required = false) UUID academicTermId) {
-        if (academicTermId != null) {
-            return service.findByAcademicTermId(academicTermId);
+    public List<AcademicTerm> findAll(@RequestParam(required = false) UUID academicYearId) {
+        if (academicYearId != null) {
+            return service.findByAcademicYearId(academicYearId);
         }
         return service.findAll();
     }
 
     @GetMapping("/{id}")
-    public AcademicPeriod findById(@PathVariable UUID id) {
+    public AcademicTerm findById(@PathVariable UUID id) {
         return service.findById(id);
     }
 
     @PutMapping("/{id}")
-    public AcademicPeriod update(
+    public AcademicTerm update(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateAcademicPeriodDto dto
+            @Valid @RequestBody UpdateAcademicTermDto dto
     ) {
         return service.update(id, dto);
     }

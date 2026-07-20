@@ -1,13 +1,10 @@
-package eclosia.eclosia_organization_service.academic_period.entity;
+package eclosia.eclosia_organization_service.academic_term.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import eclosia.eclosia_organization_service.academic_period.enums.AcademicPeriodType;
-import eclosia.eclosia_organization_service.academic_term.entity.AcademicTerm;
+import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,18 +23,18 @@ import java.util.UUID;
 @Data
 @Entity
 @Table(
-        name = "academic_periods",
+        name = "academic_terms",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_term_period_code",
+                        name = "uk_academic_year_term_code",
                         columnNames = {
-                                "academic_term_id",
+                                "academic_year_id",
                                 "code"
                         }
                 )
         }
 )
-public class AcademicPeriod {
+public class AcademicTerm {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -45,18 +42,14 @@ public class AcademicPeriod {
 
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "academic_term_id", nullable = false)
-    private AcademicTerm academicTerm;
+    @JoinColumn(name = "academic_year_id", nullable = false)
+    private AcademicYear academicYear;
 
     @Column(nullable = false, length = 20)
     private String code;
 
     @Column(nullable = false, length = 100)
     private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "period_type", nullable = false, length = 20)
-    private AcademicPeriodType periodType;
 
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
@@ -72,8 +65,8 @@ public class AcademicPeriod {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @JsonProperty("academicTermId")
-    public UUID getAcademicTermId() {
-        return academicTerm != null ? academicTerm.getId() : null;
+    @JsonProperty("academicYearId")
+    public UUID getAcademicYearId() {
+        return academicYear != null ? academicYear.getId() : null;
     }
 }
