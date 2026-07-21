@@ -37,6 +37,7 @@ public class AcademicPeriodService {
                 dto.getName(),
                 dto.getPeriodType(),
                 dto.getDisplayOrder(),
+                dto.getMaximumScoreRatio(),
                 dto.getActive()
         );
         return repository.save(academicPeriod);
@@ -73,6 +74,7 @@ public class AcademicPeriodService {
                 dto.getName(),
                 dto.getPeriodType(),
                 dto.getDisplayOrder(),
+                dto.getMaximumScoreRatio(),
                 dto.getActive()
         );
         return repository.save(academicPeriod);
@@ -90,6 +92,7 @@ public class AcademicPeriodService {
             String name,
             AcademicPeriodType periodType,
             Integer displayOrder,
+            Integer maximumScoreRatio,
             Boolean active
     ) {
         academicPeriod.setAcademicTerm(resolveAcademicTerm(academicTermId));
@@ -97,6 +100,7 @@ public class AcademicPeriodService {
         academicPeriod.setName(name);
         academicPeriod.setPeriodType(periodType);
         academicPeriod.setDisplayOrder(displayOrder);
+        academicPeriod.setMaximumScoreRatio(maximumScoreRatio);
         academicPeriod.setActive(active != null ? active : true);
     }
 

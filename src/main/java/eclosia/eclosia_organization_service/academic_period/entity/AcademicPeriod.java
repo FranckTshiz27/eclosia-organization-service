@@ -61,6 +61,9 @@ public class AcademicPeriod {
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
 
+    @Column(name = "maximum_score_ratio", nullable = false)
+    private Integer maximumScoreRatio;
+
     @Column(nullable = false)
     private Boolean active = true;
 

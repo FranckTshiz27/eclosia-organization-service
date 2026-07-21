@@ -6,9 +6,29 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface AcademicCurriculumRepository extends JpaRepository<AcademicCurriculum, UUID> {
+
+    @Query("""
+            SELECT c
+            FROM AcademicCurriculum c
+            WHERE c.academicYear.id = :academicYearId
+              AND c.academicCycle.id = :academicCycleId
+              AND c.academicLevel.id = :academicLevelId
+              AND ((:academicSectionId IS NULL AND c.academicSection IS NULL)
+                   OR c.academicSection.id = :academicSectionId)
+              AND ((:academicOptionId IS NULL AND c.academicOption IS NULL)
+                   OR c.academicOption.id = :academicOptionId)
+            """)
+    Optional<AcademicCurriculum> findByCurriculumKeys(
+            @Param("academicYearId") UUID academicYearId,
+            @Param("academicCycleId") UUID academicCycleId,
+            @Param("academicLevelId") UUID academicLevelId,
+            @Param("academicSectionId") UUID academicSectionId,
+            @Param("academicOptionId") UUID academicOptionId
+    );
 
     @Query("""
             SELECT CASE WHEN COUNT(c) > 0 THEN TRUE ELSE FALSE END
