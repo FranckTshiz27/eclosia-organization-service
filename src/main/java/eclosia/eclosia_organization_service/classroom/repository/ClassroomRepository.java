@@ -5,12 +5,33 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface ClassroomRepository extends JpaRepository<Classroom, UUID> {
 
     List<Classroom> findBySchool_IdOrderByClassroomDesignation_DisplayOrderAsc(UUID schoolId);
+
+    List<Classroom> findByIdIn(Collection<UUID> ids);
+
+    @Query("""
+            SELECT DISTINCT c.id
+            FROM TeacherClassAssignment a
+            JOIN a.classroom c
+            WHERE a.teacher.id = :teacherId
+              AND a.active = TRUE
+            """)
+    List<UUID> findClassroomIdsWhereTeacherIsTitular(@Param("teacherId") UUID teacherId);
+
+    @Query("""
+            SELECT DISTINCT c.id
+            FROM TeacherCourseAssignment a
+            JOIN a.classroom c
+            WHERE a.teacher.id = :teacherId
+              AND a.active = TRUE
+            """)
+    List<UUID> findClassroomIdsWhereTeacherHasCourse(@Param("teacherId") UUID teacherId);
 
     @Query("""
             SELECT c FROM Classroom c

@@ -17,17 +17,22 @@ import eclosia.eclosia_organization_service.common.exception.BusinessException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
 import eclosia.eclosia_organization_service.school.entity.School;
 import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
-import lombok.Data;
+import eclosia.eclosia_organization_service.security.auth.service.CurrentUserService;
+import eclosia.eclosia_organization_service.teacher.entity.Teacher;
+import eclosia.eclosia_organization_service.teacher.repository.TeacherRepository;
+import eclosia.eclosia_organization_service.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Data
 public class ClassroomService {
 
     private final ClassroomRepository repository;
@@ -37,6 +42,8 @@ public class ClassroomService {
     private final AcademicOptionRepository academicOptionRepository;
     private final ClassroomDesignationRepository classroomDesignationRepository;
     private final ClassroomNamingService classroomNamingService;
+    private final CurrentUserService currentUserService;
+    private final TeacherRepository teacherRepository;
 
     public Classroom create(CreateClassroomDto dto) {
         AcademicLevel level = resolveAcademicLevel(dto.getAcademicLevelId());
@@ -54,14 +61,16 @@ public class ClassroomService {
 
     @Transactional(readOnly = true)
     public List<Classroom> findAll() {
-        return repository.findAll().stream()
+        return applyTeacherScope(repository.findAll()).stream()
                 .map(this::enrichDisplayName)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<Classroom> findBySchoolId(UUID schoolId) {
-        return repository.findBySchool_IdOrderByClassroomDesignation_DisplayOrderAsc(schoolId).stream()
+        return applyTeacherScope(
+                repository.findBySchool_IdOrderByClassroomDesignation_DisplayOrderAsc(schoolId)
+        ).stream()
                 .map(this::enrichDisplayName)
                 .toList();
     }
@@ -70,6 +79,18 @@ public class ClassroomService {
     public Classroom findById(UUID id) {
         Classroom classroom = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Classroom not found"));
+
+        User currentUser = currentUserService.requireCurrentUser();
+        if (!currentUserService.isUserAdmin(currentUser)) {
+            Optional<Teacher> teacher = teacherRepository.findBySecurityUser_IdAndActiveTrue(currentUser.getId());
+            if (teacher.isPresent()) {
+                Set<UUID> allowedIds = classroomIdsForTeacher(teacher.get().getId());
+                if (!allowedIds.contains(id)) {
+                    throw new ResourceNotFoundException("Classroom not found");
+                }
+            }
+        }
+
         return enrichDisplayName(classroom);
     }
 
@@ -92,6 +113,33 @@ public class ClassroomService {
         Classroom classroom = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Classroom not found"));
         repository.delete(classroom);
+    }
+
+    private List<Classroom> applyTeacherScope(List<Classroom> classrooms) {
+        User currentUser = currentUserService.requireCurrentUser();
+        if (currentUserService.isUserAdmin(currentUser)) {
+            return classrooms;
+        }
+
+        Optional<Teacher> teacher = teacherRepository.findBySecurityUser_IdAndActiveTrue(currentUser.getId());
+        if (teacher.isEmpty()) {
+            return classrooms;
+        }
+
+        Set<UUID> allowedIds = classroomIdsForTeacher(teacher.get().getId());
+        if (allowedIds.isEmpty()) {
+            return List.of();
+        }
+        return classrooms.stream()
+                .filter(classroom -> allowedIds.contains(classroom.getId()))
+                .toList();
+    }
+
+    private Set<UUID> classroomIdsForTeacher(UUID teacherId) {
+        Set<UUID> ids = new HashSet<>();
+        ids.addAll(repository.findClassroomIdsWhereTeacherIsTitular(teacherId));
+        ids.addAll(repository.findClassroomIdsWhereTeacherHasCourse(teacherId));
+        return ids;
     }
 
     private Classroom enrichDisplayName(Classroom classroom) {

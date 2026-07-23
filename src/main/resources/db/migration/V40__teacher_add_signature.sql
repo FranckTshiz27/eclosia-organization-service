@@ -1,0 +1,2 @@
+ALTER TABLE teacher
+    ADD COLUMN IF NOT EXISTS signature TEXT;

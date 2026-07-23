@@ -2,6 +2,7 @@ package eclosia.eclosia_organization_service.guardian.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import eclosia.eclosia_organization_service.common.enums.Gender;
 import eclosia.eclosia_organization_service.school.entity.School;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

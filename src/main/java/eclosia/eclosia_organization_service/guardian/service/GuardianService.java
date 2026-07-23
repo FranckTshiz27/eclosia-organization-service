@@ -4,7 +4,7 @@ import eclosia.eclosia_organization_service.common.exception.BadRequestException
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
 import eclosia.eclosia_organization_service.guardian.dto.CreateGuardianDto;
 import eclosia.eclosia_organization_service.guardian.dto.UpdateGuardianDto;
-import eclosia.eclosia_organization_service.guardian.entity.Gender;
+import eclosia.eclosia_organization_service.common.enums.Gender;
 import eclosia.eclosia_organization_service.guardian.entity.Guardian;
 import eclosia.eclosia_organization_service.guardian.repository.GuardianRepository;
 import eclosia.eclosia_organization_service.school.entity.School;

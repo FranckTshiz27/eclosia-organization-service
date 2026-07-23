@@ -6,19 +6,22 @@ import eclosia.eclosia_organization_service.school.dto.CreateSchoolDto;
 import eclosia.eclosia_organization_service.school.dto.UpdateSchoolDto;
 import eclosia.eclosia_organization_service.school.entity.School;
 import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
-import lombok.Data;
+import eclosia.eclosia_organization_service.security.auth.service.CurrentUserService;
+import eclosia.eclosia_organization_service.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Data
 public class SchoolService {
 
     private final SchoolRepository repository;
+    private final CurrentUserService currentUserService;
 
     public School create(CreateSchoolDto dto) {
         if (repository.existsByCode(dto.getCode())) {
@@ -30,13 +33,36 @@ public class SchoolService {
         return repository.save(school);
     }
 
+    @Transactional(readOnly = true)
     public List<School> findAll() {
-        return repository.findAll();
+        User currentUser = currentUserService.requireCurrentUser();
+
+        if (currentUserService.isUserAdmin(currentUser)) {
+            return repository.findAll();
+        }
+
+        Set<UUID> assignedSchoolIds = currentUserService.schoolIds(currentUser);
+        if (assignedSchoolIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.findByIdIn(assignedSchoolIds);
     }
 
+    @Transactional(readOnly = true)
     public School findById(UUID id) {
-        return repository.findById(id)
+        School school = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("School not found"));
+
+        User currentUser = currentUserService.requireCurrentUser();
+        if (currentUserService.isUserAdmin(currentUser)) {
+            return school;
+        }
+
+        Set<UUID> assignedSchoolIds = currentUserService.schoolIds(currentUser);
+        if (!assignedSchoolIds.contains(id)) {
+            throw new ResourceNotFoundException("School not found");
+        }
+        return school;
     }
 
     public School update(UUID id, UpdateSchoolDto dto) {

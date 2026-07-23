@@ -1,6 +1,6 @@
 package eclosia.eclosia_organization_service.guardian.dto;
 
-import eclosia.eclosia_organization_service.guardian.entity.Gender;
+import eclosia.eclosia_organization_service.common.enums.Gender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
