@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class CurrentUserService {
 
     public static final String ROLE_USER_ADMIN = "USER_ADMIN";
+    public static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
 
     private final UserRepository userRepository;
 
@@ -53,8 +54,15 @@ public class CurrentUserService {
         return user;
     }
 
+    /**
+     * Super admin / user admin : accès à tout (groupes, écoles, classes, …).
+     */
     public boolean isUserAdmin(User user) {
-        return hasRole(user, ROLE_USER_ADMIN);
+        return hasRole(user, ROLE_SUPER_ADMIN) || hasRole(user, ROLE_USER_ADMIN);
+    }
+
+    public boolean isSuperAdmin(User user) {
+        return hasRole(user, ROLE_SUPER_ADMIN);
     }
 
     public boolean hasRole(User user, String roleCode) {

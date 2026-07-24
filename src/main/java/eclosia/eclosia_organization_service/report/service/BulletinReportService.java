@@ -11,11 +11,15 @@ import eclosia.eclosia_organization_service.academic_term.entity.AcademicTerm;
 import eclosia.eclosia_organization_service.academic_term.repository.AcademicTermRepository;
 import eclosia.eclosia_organization_service.academic_year.entity.AcademicYear;
 import eclosia.eclosia_organization_service.academic_year.repository.AcademicYearRepository;
+import eclosia.eclosia_organization_service.city.entity.City;
+import eclosia.eclosia_organization_service.city.repository.CityRepository;
 import eclosia.eclosia_organization_service.classroom.entity.Classroom;
 import eclosia.eclosia_organization_service.classroom.service.ClassroomNamingService;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
 import eclosia.eclosia_organization_service.common.validation.AcademicYearCountryValidator;
+import eclosia.eclosia_organization_service.commune.entity.Commune;
+import eclosia.eclosia_organization_service.commune.repository.CommuneRepository;
 import eclosia.eclosia_organization_service.enrollment.entity.Enrollment;
 import eclosia.eclosia_organization_service.enrollment.repository.EnrollmentRepository;
 import eclosia.eclosia_organization_service.report.dto.BulletinPdfResponseDto;
@@ -26,11 +30,14 @@ import eclosia.eclosia_organization_service.report.enums.BulletinPrintMode;
 import eclosia.eclosia_organization_service.report.enums.BulletinSortBy;
 import eclosia.eclosia_organization_service.school.entity.School;
 import eclosia.eclosia_organization_service.school.repository.SchoolRepository;
+import eclosia.eclosia_organization_service.state.entity.State;
+import eclosia.eclosia_organization_service.state.repository.StateRepository;
 import eclosia.eclosia_organization_service.student.entity.Student;
 import eclosia.eclosia_organization_service.student_grade.entity.StudentGrade;
 import eclosia.eclosia_organization_service.student_grade.repository.StudentGradeRepository;
 import eclosia.eclosia_organization_service.subject.entity.Subject;
 import eclosia.eclosia_organization_service.subject_domain.entity.SubjectDomain;
+import eclosia.eclosia_organization_service.subject_sub_domain.entity.SubjectSubDomain;
 import lombok.RequiredArgsConstructor;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
@@ -47,7 +54,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -65,11 +71,14 @@ import java.util.stream.Collectors;
 public class BulletinReportService {
 
     private static final String REPORT_PATH = "report/bulletin_eleve.jrxml";
+    private static final String FLAG_PATH = "report/drc_flag.png";
+    private static final String ARMS_PATH = "report/drc_arms.png";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final String ROW_DOMAIN = "DOMAIN_HEADER";
+    private static final String ROW_SUBJECT_GROUP = "SUBJECT_GROUP";
     private static final String ROW_SUBJECT = "SUBJECT";
     private static final String ROW_SUBTOTAL = "SUBTOTAL";
-    private static final String ROW_GENERAL = "GENERAL_AVERAGE";
+    private static final String ROW_GENERAL = "GENERAL_MAXIMA";
 
     private final SchoolRepository schoolRepository;
     private final AcademicYearRepository academicYearRepository;
@@ -79,6 +88,9 @@ public class BulletinReportService {
     private final AcademicCurriculumRepository academicCurriculumRepository;
     private final AcademicCurriculumSubjectRepository academicCurriculumSubjectRepository;
     private final StudentGradeRepository studentGradeRepository;
+    private final CityRepository cityRepository;
+    private final CommuneRepository communeRepository;
+    private final StateRepository stateRepository;
     private final ClassroomNamingService classroomNamingService;
 
     @Transactional(readOnly = true)
@@ -164,9 +176,12 @@ public class BulletinReportService {
         List<AcademicTerm> usedTerms = terms.stream().limit(3).toList();
 
         List<UUID> termIds = usedTerms.stream().map(AcademicTerm::getId).toList();
+        // Seules les périodes active=true entrent dans le calcul / affichage du bulletin.
         List<AcademicPeriod> allPeriods = termIds.isEmpty()
                 ? List.of()
-                : academicPeriodRepository.findByAcademicTerm_IdInOrderByDisplayOrderAsc(termIds);
+                : academicPeriodRepository.findByAcademicTerm_IdInOrderByDisplayOrderAsc(termIds).stream()
+                        .filter(p -> Boolean.TRUE.equals(p.getActive()))
+                        .toList();
 
         Map<UUID, List<AcademicPeriod>> periodsByTerm = allPeriods.stream()
                 .collect(Collectors.groupingBy(
@@ -286,9 +301,15 @@ public class BulletinReportService {
 
         Map<UUID, List<AcademicCurriculumSubject>> subjectsByCurriculum = new HashMap<>();
         Map<String, AcademicCurriculum> curriculumCache = new HashMap<>();
+        SchoolLocation schoolLocation = resolveSchoolLocation(context.school());
 
         Map<UUID, BigDecimal> yearTotalsByEnrollment = new HashMap<>();
-        Map<UUID, Map<UUID, BigDecimal>> subjectYearTotalsByEnrollment = new HashMap<>();
+        Map<UUID, EnrollmentTotals> totalsByEnrollment = new HashMap<>();
+        Map<UUID, Integer> classmatesCount = context.enrollments().stream()
+                .collect(Collectors.groupingBy(
+                        e -> e.getClassroom().getId(),
+                        Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
+                ));
 
         for (Enrollment enrollment : context.enrollments()) {
             AcademicCurriculum curriculum = resolveCurriculum(enrollment, context.academicYear(), curriculumCache);
@@ -303,28 +324,28 @@ public class BulletinReportService {
                     gradesByEnrollment.getOrDefault(enrollment.getId(), List.of())
             );
 
-            BigDecimal yearTotal = BigDecimal.ZERO;
-            Map<UUID, BigDecimal> subjectTotals = new HashMap<>();
+            TermScoreAgg t1Agg = TermScoreAgg.zero();
+            TermScoreAgg t2Agg = TermScoreAgg.zero();
+            TermScoreAgg t3Agg = TermScoreAgg.zero();
             for (AcademicCurriculumSubject acs : subjects) {
-                TermScore t1 = computeTermScore(acs, context.termPeriods().get(0), scoreMap);
-                TermScore t2 = computeTermScore(acs, context.termPeriods().get(1), scoreMap);
-                TermScore t3 = computeTermScore(acs, context.termPeriods().get(2), scoreMap);
-                BigDecimal subjectYear = sumNullable(t1.tot(), t2.tot(), t3.tot());
-                subjectTotals.put(acs.getId(), subjectYear);
-                yearTotal = yearTotal.add(subjectYear);
+                t1Agg.add(computeTermScore(acs, context.termPeriods().get(0), scoreMap));
+                t2Agg.add(computeTermScore(acs, context.termPeriods().get(1), scoreMap));
+                t3Agg.add(computeTermScore(acs, context.termPeriods().get(2), scoreMap));
             }
-            yearTotalsByEnrollment.put(enrollment.getId(), yearTotal);
-            subjectYearTotalsByEnrollment.put(enrollment.getId(), subjectTotals);
+
+            EnrollmentTotals totals = new EnrollmentTotals(
+                    t1Agg.toTermScore(),
+                    t2Agg.toTermScore(),
+                    t3Agg.toTermScore()
+            );
+            totalsByEnrollment.put(enrollment.getId(), totals);
+            yearTotalsByEnrollment.put(enrollment.getId(), totals.yearTot());
         }
 
         Map<UUID, String> classRanks = Boolean.TRUE.equals(request.getIncludeStudentRank())
+                || request.getIncludeStudentRank() == null
                 ? computeClassRanks(context.enrollments(), yearTotalsByEnrollment)
                 : Map.of();
-
-        Map<UUID, Map<UUID, BigDecimal>> classAvgByClassroomAndSubject =
-                Boolean.TRUE.equals(request.getIncludeClassAverages())
-                        ? computeClassAverages(context.enrollments(), subjectYearTotalsByEnrollment)
-                        : Map.of();
 
         List<BulletinSubjectRowDto> rows = new ArrayList<>();
         for (Enrollment enrollment : context.enrollments()) {
@@ -337,11 +358,19 @@ public class BulletinReportService {
                     gradesByEnrollment.getOrDefault(enrollment.getId(), List.of())
             );
 
+            EnrollmentTotals totals = totalsByEnrollment.getOrDefault(
+                    enrollment.getId(),
+                    EnrollmentTotals.empty()
+            );
+
             StudentIdentity identity = buildIdentity(
                     enrollment,
                     context.school(),
                     context.academicYear(),
-                    classRanks.get(enrollment.getId())
+                    schoolLocation,
+                    classRanks.getOrDefault(enrollment.getId(), ""),
+                    String.valueOf(classmatesCount.getOrDefault(enrollment.getClassroom().getId(), 0)),
+                    buildPercentages(totals)
             );
 
             if (subjects.isEmpty()) {
@@ -355,6 +384,7 @@ public class BulletinReportService {
             Map<String, List<AcademicCurriculumSubject>> byDomain = subjects.stream()
                     .sorted(Comparator
                             .comparing((AcademicCurriculumSubject acs) -> resolveDomainDisplayOrder(acs.getSubject()))
+                            .thenComparing(acs -> resolveSubDomainDisplayOrder(acs.getSubject()))
                             .thenComparing(acs -> acs.getDisplayOrder() != null ? acs.getDisplayOrder() : Integer.MAX_VALUE))
                     .collect(Collectors.groupingBy(
                             acs -> resolveDomainName(acs.getSubject()),
@@ -362,12 +392,11 @@ public class BulletinReportService {
                             Collectors.toList()
                     ));
 
-            BigDecimal generalT1 = BigDecimal.ZERO;
-            BigDecimal generalT2 = BigDecimal.ZERO;
-            BigDecimal generalT3 = BigDecimal.ZERO;
             BigDecimal generalYear = BigDecimal.ZERO;
-            BigDecimal generalMax = BigDecimal.ZERO;
-            int subjectCount = 0;
+            BigDecimal generalYearMax = BigDecimal.ZERO;
+            TermScoreAgg generalT1 = TermScoreAgg.zero();
+            TermScoreAgg generalT2 = TermScoreAgg.zero();
+            TermScoreAgg generalT3 = TermScoreAgg.zero();
 
             for (Map.Entry<String, List<AcademicCurriculumSubject>> domainEntry : byDomain.entrySet()) {
                 boolean hasNamedDomain = domainEntry.getKey() != null
@@ -381,79 +410,89 @@ public class BulletinReportService {
                     rows.add(domainHeader);
                 }
 
-                BigDecimal domainT1 = BigDecimal.ZERO;
-                BigDecimal domainT2 = BigDecimal.ZERO;
-                BigDecimal domainT3 = BigDecimal.ZERO;
-                BigDecimal domainYear = BigDecimal.ZERO;
-                BigDecimal domainMax = BigDecimal.ZERO;
+                Map<String, List<AcademicCurriculumSubject>> byGroup = domainEntry.getValue().stream()
+                        .collect(Collectors.groupingBy(
+                                acs -> resolveSubDomainName(acs.getSubject()),
+                                LinkedHashMap::new,
+                                Collectors.toList()
+                        ));
 
-                for (AcademicCurriculumSubject acs : domainEntry.getValue()) {
-                    TermScore t1 = computeTermScore(acs, context.termPeriods().get(0), scoreMap);
-                    TermScore t2 = computeTermScore(acs, context.termPeriods().get(1), scoreMap);
-                    TermScore t3 = computeTermScore(acs, context.termPeriods().get(2), scoreMap);
-                    BigDecimal yearTot = sumNullable(t1.tot(), t2.tot(), t3.tot());
-                    BigDecimal maxPoints = acs.getMaximumPoints() != null ? acs.getMaximumPoints() : BigDecimal.ZERO;
-
-                    BulletinSubjectRowDto row = baseRow(identity);
-                    row.setRowType(ROW_SUBJECT);
-                    row.setDomainName(domainEntry.getKey());
-                    row.setBranchName(acs.getSubject().getName() != null
-                            ? acs.getSubject().getName().toUpperCase()
-                            : "");
-                    row.setMaxPoints(formatScore(maxPoints));
-                    fillTermColumns(row, 1, t1);
-                    fillTermColumns(row, 2, t2);
-                    fillTermColumns(row, 3, t3);
-                    row.setYearMax(formatScore(maxPoints.multiply(BigDecimal.valueOf(3))));
-                    row.setYearTot(formatScore(yearTot));
-                    if (Boolean.TRUE.equals(request.getIncludeClassAverages())) {
-                        BigDecimal avg = classAvgByClassroomAndSubject
-                                .getOrDefault(enrollment.getClassroom().getId(), Map.of())
-                                .get(acs.getId());
-                        row.setClassAvg(formatScore(avg));
+                for (Map.Entry<String, List<AcademicCurriculumSubject>> groupEntry : byGroup.entrySet()) {
+                    String groupName = groupEntry.getKey();
+                    boolean hasGroup = groupName != null && !groupName.isBlank();
+                    if (hasGroup) {
+                        BulletinSubjectRowDto groupHeader = baseRow(identity);
+                        groupHeader.setRowType(ROW_SUBJECT_GROUP);
+                        groupHeader.setDomainName(domainEntry.getKey());
+                        groupHeader.setBranchName(groupName.toUpperCase());
+                        rows.add(groupHeader);
                     }
-                    rows.add(row);
 
-                    domainT1 = domainT1.add(nullToZero(t1.tot()));
-                    domainT2 = domainT2.add(nullToZero(t2.tot()));
-                    domainT3 = domainT3.add(nullToZero(t3.tot()));
-                    domainYear = domainYear.add(yearTot);
-                    domainMax = domainMax.add(maxPoints);
+                    BigDecimal groupYear = BigDecimal.ZERO;
+                    BigDecimal groupYearMax = BigDecimal.ZERO;
+                    TermScoreAgg groupT1 = TermScoreAgg.zero();
+                    TermScoreAgg groupT2 = TermScoreAgg.zero();
+                    TermScoreAgg groupT3 = TermScoreAgg.zero();
 
-                    generalT1 = generalT1.add(nullToZero(t1.tot()));
-                    generalT2 = generalT2.add(nullToZero(t2.tot()));
-                    generalT3 = generalT3.add(nullToZero(t3.tot()));
-                    generalYear = generalYear.add(yearTot);
-                    generalMax = generalMax.add(maxPoints);
-                    subjectCount++;
+                    for (AcademicCurriculumSubject acs : groupEntry.getValue()) {
+                        TermScore t1 = computeTermScore(acs, context.termPeriods().get(0), scoreMap);
+                        TermScore t2 = computeTermScore(acs, context.termPeriods().get(1), scoreMap);
+                        TermScore t3 = computeTermScore(acs, context.termPeriods().get(2), scoreMap);
+                        BigDecimal yearTot = nullToZero(sumNullable(t1.tot(), t2.tot(), t3.tot()));
+                        BigDecimal yearMax = nullToZero(t1.trimMax())
+                                .add(nullToZero(t2.trimMax()))
+                                .add(nullToZero(t3.trimMax()));
+
+                        BulletinSubjectRowDto row = baseRow(identity);
+                        row.setRowType(ROW_SUBJECT);
+                        row.setDomainName(domainEntry.getKey());
+                        row.setBranchName(acs.getSubject().getName() != null
+                                ? acs.getSubject().getName()
+                                : "");
+                        row.setMaxPoints(formatScore(t1.max()));
+                        fillTermColumns(row, 1, t1);
+                        fillTermColumns(row, 2, t2);
+                        fillTermColumns(row, 3, t3);
+                        row.setYearMax(formatScore(yearMax));
+                        row.setYearTot(formatScore(yearTot));
+                        rows.add(row);
+
+                        groupT1.add(t1);
+                        groupT2.add(t2);
+                        groupT3.add(t3);
+                        groupYear = groupYear.add(yearTot);
+                        groupYearMax = groupYearMax.add(yearMax);
+
+                        generalT1.add(t1);
+                        generalT2.add(t2);
+                        generalT3.add(t3);
+                        generalYear = generalYear.add(yearTot);
+                        generalYearMax = generalYearMax.add(yearMax);
+                    }
+
+                    BulletinSubjectRowDto subtotal = baseRow(identity);
+                    subtotal.setRowType(ROW_SUBTOTAL);
+                    subtotal.setDomainName(domainEntry.getKey());
+                    subtotal.setBranchName("Sous-total");
+                    subtotal.setMaxPoints(formatScore(groupT1.maxPeriod));
+                    fillTermColumns(subtotal, 1, groupT1.toTermScore());
+                    fillTermColumns(subtotal, 2, groupT2.toTermScore());
+                    fillTermColumns(subtotal, 3, groupT3.toTermScore());
+                    subtotal.setYearMax(formatScore(groupYearMax));
+                    subtotal.setYearTot(formatScore(groupYear));
+                    rows.add(subtotal);
                 }
-
-                BulletinSubjectRowDto subtotal = baseRow(identity);
-                subtotal.setRowType(ROW_SUBTOTAL);
-                subtotal.setDomainName(domainEntry.getKey());
-                subtotal.setBranchName("SOUS-TOTAL");
-                subtotal.setT1Tot(formatScore(domainT1));
-                subtotal.setT2Tot(formatScore(domainT2));
-                subtotal.setT3Tot(formatScore(domainT3));
-                subtotal.setYearMax(formatScore(domainMax.multiply(BigDecimal.valueOf(3))));
-                subtotal.setYearTot(formatScore(domainYear));
-                rows.add(subtotal);
             }
 
             BulletinSubjectRowDto general = baseRow(identity);
             general.setRowType(ROW_GENERAL);
-            general.setBranchName("MOY. GENERALE");
-            general.setT1Tot(formatScore(generalT1));
-            general.setT2Tot(formatScore(generalT2));
-            general.setT3Tot(formatScore(generalT3));
-            general.setYearMax(formatScore(generalMax.multiply(BigDecimal.valueOf(3))));
+            general.setBranchName("Maxima généraux");
+            general.setMaxPoints(formatScore(generalT1.maxPeriod));
+            fillTermColumns(general, 1, generalT1.toTermScore());
+            fillTermColumns(general, 2, generalT2.toTermScore());
+            fillTermColumns(general, 3, generalT3.toTermScore());
+            general.setYearMax(formatScore(generalYearMax));
             general.setYearTot(formatScore(generalYear));
-            if (subjectCount > 0) {
-                BigDecimal divisor = BigDecimal.valueOf(subjectCount);
-                general.setT1Moy(formatScore(generalT1.divide(divisor, 2, RoundingMode.HALF_UP)));
-                general.setT2Moy(formatScore(generalT2.divide(divisor, 2, RoundingMode.HALF_UP)));
-                general.setT3Moy(formatScore(generalT3.divide(divisor, 2, RoundingMode.HALF_UP)));
-            }
             rows.add(general);
         }
 
@@ -476,46 +515,11 @@ public class BulletinReportService {
                     .toList();
             int position = 1;
             for (Enrollment enrollment : ordered) {
-                ranks.put(enrollment.getId(), position + " / " + ordered.size());
+                ranks.put(enrollment.getId(), String.valueOf(position));
                 position++;
             }
         }
         return ranks;
-    }
-
-    private Map<UUID, Map<UUID, BigDecimal>> computeClassAverages(
-            List<Enrollment> enrollments,
-            Map<UUID, Map<UUID, BigDecimal>> subjectYearTotalsByEnrollment
-    ) {
-        Map<UUID, Map<UUID, List<BigDecimal>>> accumulator = new HashMap<>();
-        for (Enrollment enrollment : enrollments) {
-            UUID classroomId = enrollment.getClassroom().getId();
-            Map<UUID, BigDecimal> subjectTotals =
-                    subjectYearTotalsByEnrollment.getOrDefault(enrollment.getId(), Map.of());
-            Map<UUID, List<BigDecimal>> classroomMap =
-                    accumulator.computeIfAbsent(classroomId, id -> new HashMap<>());
-            for (Map.Entry<UUID, BigDecimal> entry : subjectTotals.entrySet()) {
-                classroomMap.computeIfAbsent(entry.getKey(), id -> new ArrayList<>()).add(entry.getValue());
-            }
-        }
-
-        Map<UUID, Map<UUID, BigDecimal>> averages = new HashMap<>();
-        for (Map.Entry<UUID, Map<UUID, List<BigDecimal>>> classroomEntry : accumulator.entrySet()) {
-            Map<UUID, BigDecimal> subjectAvgs = new HashMap<>();
-            for (Map.Entry<UUID, List<BigDecimal>> subjectEntry : classroomEntry.getValue().entrySet()) {
-                List<BigDecimal> values = subjectEntry.getValue();
-                if (values.isEmpty()) {
-                    continue;
-                }
-                BigDecimal sum = values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-                subjectAvgs.put(
-                        subjectEntry.getKey(),
-                        sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP)
-                );
-            }
-            averages.put(classroomEntry.getKey(), subjectAvgs);
-        }
-        return averages;
     }
 
     private AcademicCurriculum resolveCurriculum(
@@ -580,46 +584,21 @@ public class BulletinReportService {
             TermPeriods termPeriods,
             Map<String, BigDecimal> scoreMap
     ) {
+        BigDecimal maxPeriod = acs.getMaximumPoints() != null ? acs.getMaximumPoints() : BigDecimal.ZERO;
+        // Formule officielle IGE : MAX EX = 2 × MAX période ; MAX TRIM = 2×MAX + MAX EX
+        BigDecimal examMax = maxPeriod.multiply(BigDecimal.valueOf(2));
+        BigDecimal trimMax = maxPeriod.multiply(BigDecimal.valueOf(2)).add(examMax);
+
         if (termPeriods == null || termPeriods.term() == null) {
-            return TermScore.empty(acs.getMaximumPoints());
+            return new TermScore(maxPeriod, examMax, trimMax, null, null, null, null);
         }
 
         BigDecimal p1 = scoreOf(scoreMap, termPeriods.p1(), acs.getId());
         BigDecimal p2 = scoreOf(scoreMap, termPeriods.p2(), acs.getId());
         BigDecimal exam = scoreOf(scoreMap, termPeriods.exam(), acs.getId());
-
-        List<WeightedScore> weighted = new ArrayList<>();
-        addWeighted(weighted, p1, termPeriods.p1());
-        addWeighted(weighted, p2, termPeriods.p2());
-        addWeighted(weighted, exam, termPeriods.exam());
-
         BigDecimal tot = sumNullable(p1, p2, exam);
-        BigDecimal moy = null;
-        if (!weighted.isEmpty()) {
-            BigDecimal weightSum = weighted.stream()
-                    .map(WeightedScore::weight)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            if (weightSum.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal weightedSum = weighted.stream()
-                        .map(w -> w.score().multiply(w.weight()))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                moy = weightedSum.divide(weightSum, 2, RoundingMode.HALF_UP);
-            } else {
-                moy = tot.divide(BigDecimal.valueOf(weighted.size()), 2, RoundingMode.HALF_UP);
-            }
-        }
 
-        return new TermScore(acs.getMaximumPoints(), p1, p2, exam, moy, tot);
-    }
-
-    private void addWeighted(List<WeightedScore> weighted, BigDecimal score, AcademicPeriod period) {
-        if (score == null || period == null) {
-            return;
-        }
-        BigDecimal ratio = period.getMaximumScoreRatio() != null
-                ? BigDecimal.valueOf(period.getMaximumScoreRatio())
-                : BigDecimal.ONE;
-        weighted.add(new WeightedScore(score, ratio));
+        return new TermScore(maxPeriod, examMax, trimMax, p1, p2, exam, tot);
     }
 
     private BigDecimal scoreOf(Map<String, BigDecimal> scoreMap, AcademicPeriod period, UUID curriculumSubjectId) {
@@ -630,38 +609,35 @@ public class BulletinReportService {
     }
 
     private void fillTermColumns(BulletinSubjectRowDto row, int termIndex, TermScore score) {
-        String max = formatScore(score.max());
         String p1 = formatScore(score.p1());
         String p2 = formatScore(score.p2());
+        String examMax = formatScore(score.examMax());
         String exam = formatScore(score.exam());
-        String moy = formatScore(score.moy());
+        String trimMax = formatScore(score.trimMax());
         String tot = formatScore(score.tot());
         switch (termIndex) {
             case 1 -> {
-                row.setT1Max(max);
                 row.setT1P1(p1);
                 row.setT1P2(p2);
+                row.setT1ExamMax(examMax);
                 row.setT1Exam(exam);
-                row.setT1Moy(moy);
-                row.setT1Rr("");
+                row.setT1TrimMax(trimMax);
                 row.setT1Tot(tot);
             }
             case 2 -> {
-                row.setT2Max(max);
                 row.setT2P1(p1);
                 row.setT2P2(p2);
+                row.setT2ExamMax(examMax);
                 row.setT2Exam(exam);
-                row.setT2Moy(moy);
-                row.setT2Rr("");
+                row.setT2TrimMax(trimMax);
                 row.setT2Tot(tot);
             }
             case 3 -> {
-                row.setT3Max(max);
                 row.setT3P1(p1);
                 row.setT3P2(p2);
+                row.setT3ExamMax(examMax);
                 row.setT3Exam(exam);
-                row.setT3Moy(moy);
-                row.setT3Rr("");
+                row.setT3TrimMax(trimMax);
                 row.setT3Tot(tot);
             }
             default -> {
@@ -673,7 +649,10 @@ public class BulletinReportService {
             Enrollment enrollment,
             School school,
             AcademicYear academicYear,
-            String classRank
+            SchoolLocation location,
+            String classRank,
+            String studentCount,
+            ColumnPercentages percentages
     ) {
         Student student = enrollment.getStudent();
         String fullName = (nullSafe(student.getLastName())
@@ -681,23 +660,105 @@ public class BulletinReportService {
                 ? " " + student.getMiddleName() : "")
                 + " " + nullSafe(student.getFirstName())).trim();
 
+        String bulletinTitle = "BULLETIN DE L'ELEVE";
+        if (enrollment.getClassroom() != null
+                && enrollment.getClassroom().getAcademicLevel() != null
+                && enrollment.getClassroom().getAcademicLevel().getAcademicCycle() != null
+                && enrollment.getClassroom().getAcademicLevel().getAcademicCycle().getName() != null) {
+            bulletinTitle = "BULLETIN DE L'ELEVE "
+                    + enrollment.getClassroom().getAcademicLevel().getAcademicCycle().getName().toUpperCase();
+        }
+
         return new StudentIdentity(
                 enrollment.getId(),
                 student.getStudentNumber(),
                 fullName,
+                formatGender(student.getGender()),
                 resolveBirthPlace(student),
                 student.getBirthDate() != null ? DATE_FORMATTER.format(student.getBirthDate()) : "",
                 classroomNamingService.build(enrollment.getClassroom()),
-                enrollment.getEnrollmentNumber(),
-                buildPhotoPath(enrollment),
+                enrollment.getEnrollmentNumber() != null
+                        ? enrollment.getEnrollmentNumber()
+                        : student.getStudentNumber(),
                 school.getName(),
                 school.getCode(),
-                school.getAddress() != null ? school.getAddress() : "",
+                location.provinceName(),
+                location.cityName(),
+                location.communeName(),
                 school.getPrincipalName(),
                 academicYear.getCode(),
+                bulletinTitle,
                 classRank,
-                null
+                studentCount,
+                percentages
         );
+    }
+
+    private ColumnPercentages buildPercentages(EnrollmentTotals totals) {
+        TermScore t1 = totals.t1();
+        TermScore t2 = totals.t2();
+        TermScore t3 = totals.t3();
+        return new ColumnPercentages(
+                formatPercentage(t1.p1(), t1.max()),
+                formatPercentage(t1.p2(), t1.max()),
+                formatPercentage(t1.exam(), t1.examMax()),
+                formatPercentage(t1.tot(), t1.trimMax()),
+                formatPercentage(t2.p1(), t2.max()),
+                formatPercentage(t2.p2(), t2.max()),
+                formatPercentage(t2.exam(), t2.examMax()),
+                formatPercentage(t2.tot(), t2.trimMax()),
+                formatPercentage(t3.p1(), t3.max()),
+                formatPercentage(t3.p2(), t3.max()),
+                formatPercentage(t3.exam(), t3.examMax()),
+                formatPercentage(t3.tot(), t3.trimMax()),
+                formatPercentage(totals.yearTot(), totals.yearMax())
+        );
+    }
+
+    private String formatPercentage(BigDecimal obtained, BigDecimal maximum) {
+        if (obtained == null || maximum == null || maximum.compareTo(BigDecimal.ZERO) <= 0) {
+            return "";
+        }
+        return formatScore(obtained
+                .multiply(BigDecimal.valueOf(100))
+                .divide(maximum, 2, RoundingMode.HALF_UP)) + " %";
+    }
+
+    private SchoolLocation resolveSchoolLocation(School school) {
+        String cityName = "";
+        String provinceName = "";
+        String communeName = "";
+
+        if (school.getCityId() != null) {
+            City city = cityRepository.findById(school.getCityId()).orElse(null);
+            if (city != null) {
+                cityName = nullSafe(city.getName());
+                if (city.getProvinceId() != null) {
+                    State state = stateRepository.findById(city.getProvinceId()).orElse(null);
+                    if (state != null) {
+                        provinceName = nullSafe(state.getName());
+                    }
+                }
+            }
+        }
+        if (school.getCommuneId() != null) {
+            Commune commune = communeRepository.findById(school.getCommuneId()).orElse(null);
+            if (commune != null) {
+                communeName = nullSafe(commune.getName());
+            }
+        }
+        return new SchoolLocation(provinceName, cityName, communeName);
+    }
+
+    private String formatGender(String gender) {
+        if (gender == null) {
+            return "";
+        }
+        return switch (gender.trim().toUpperCase()) {
+            case "MALE", "M", "MASCULIN" -> "M";
+            case "FEMALE", "F", "FEMININ", "FÉMININ" -> "F";
+            default -> gender;
+        };
     }
 
     private String resolveBirthPlace(Student student) {
@@ -713,86 +774,90 @@ public class BulletinReportService {
         return "";
     }
 
-    private String buildPhotoPath(Enrollment enrollment) {
-        if (enrollment.getPhoto() == null) {
-            return null;
-        }
-        return Paths.get(enrollment.getPhoto().getPath(), enrollment.getPhoto().getFileName()).toString();
-    }
-
     private BulletinSubjectRowDto baseRow(StudentIdentity identity) {
         BulletinSubjectRowDto row = new BulletinSubjectRowDto();
         row.setStudentEnrollmentId(identity.studentEnrollmentId());
         row.setStudentNumber(emptyToBlank(identity.studentNumber()));
         row.setStudentFullName(emptyToBlank(identity.studentFullName()));
+        row.setGender(emptyToBlank(identity.gender()));
         row.setBirthPlace(emptyToBlank(identity.birthPlace()));
         row.setBirthDate(emptyToBlank(identity.birthDate()));
         row.setClassroomName(emptyToBlank(identity.classroomName()));
         row.setEnrollmentNumber(emptyToBlank(identity.enrollmentNumber()));
-        row.setPhotoPath(emptyToBlank(identity.photoPath()));
         row.setSchoolName(emptyToBlank(identity.schoolName()));
         row.setSchoolCode(emptyToBlank(identity.schoolCode()));
-        row.setSchoolAddress(emptyToBlank(identity.schoolAddress()));
+        row.setProvinceName(emptyToBlank(identity.provinceName()));
+        row.setCityName(emptyToBlank(identity.cityName()));
+        row.setCommuneName(emptyToBlank(identity.communeName()));
         row.setPrincipalName(emptyToBlank(identity.principalName()));
         row.setAcademicYearLabel(emptyToBlank(identity.academicYearLabel()));
+        row.setBulletinTitle(emptyToBlank(identity.bulletinTitle()));
         row.setClassRank(emptyToBlank(identity.classRank()));
-        row.setSchoolRank(emptyToBlank(identity.schoolRank()));
+        row.setStudentCount(emptyToBlank(identity.studentCount()));
+        ColumnPercentages pct = identity.percentages();
+        row.setT1P1Percentage(emptyToBlank(pct.t1P1()));
+        row.setT1P2Percentage(emptyToBlank(pct.t1P2()));
+        row.setT1ExamPercentage(emptyToBlank(pct.t1Exam()));
+        row.setT1TotPercentage(emptyToBlank(pct.t1Tot()));
+        row.setT2P1Percentage(emptyToBlank(pct.t2P1()));
+        row.setT2P2Percentage(emptyToBlank(pct.t2P2()));
+        row.setT2ExamPercentage(emptyToBlank(pct.t2Exam()));
+        row.setT2TotPercentage(emptyToBlank(pct.t2Tot()));
+        row.setT3P1Percentage(emptyToBlank(pct.t3P1()));
+        row.setT3P2Percentage(emptyToBlank(pct.t3P2()));
+        row.setT3ExamPercentage(emptyToBlank(pct.t3Exam()));
+        row.setT3TotPercentage(emptyToBlank(pct.t3Tot()));
+        row.setYearPercentage(emptyToBlank(pct.year()));
+        row.setPercentage(emptyToBlank(pct.year()));
         row.setRowType("");
         row.setDomainName("");
         row.setBranchName("");
         row.setMaxPoints("");
-        row.setT1Max("");
         row.setT1P1("");
         row.setT1P2("");
+        row.setT1ExamMax("");
         row.setT1Exam("");
-        row.setT1Moy("");
-        row.setT1Rr("");
+        row.setT1TrimMax("");
         row.setT1Tot("");
-        row.setT2Max("");
         row.setT2P1("");
         row.setT2P2("");
+        row.setT2ExamMax("");
         row.setT2Exam("");
-        row.setT2Moy("");
-        row.setT2Rr("");
+        row.setT2TrimMax("");
         row.setT2Tot("");
-        row.setT3Max("");
         row.setT3P1("");
         row.setT3P2("");
+        row.setT3ExamMax("");
         row.setT3Exam("");
-        row.setT3Moy("");
-        row.setT3Rr("");
+        row.setT3TrimMax("");
         row.setT3Tot("");
         row.setYearMax("");
         row.setYearTot("");
-        row.setClassAvg("");
         return row;
     }
 
     private Map<String, Object> buildParameters(Context context, BulletinPrintRequestDto request) {
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("INCLUDE_COVER_PAGE", Boolean.TRUE.equals(request.getIncludeCoverPage()));
-        parameters.put("INCLUDE_SIGNATURES", request.getIncludeSignatures() == null || request.getIncludeSignatures());
-        parameters.put("INCLUDE_STUDENT_RANK", Boolean.TRUE.equals(request.getIncludeStudentRank()));
-        parameters.put("INCLUDE_CLASS_AVERAGES", Boolean.TRUE.equals(request.getIncludeClassAverages()));
         parameters.put("COVER_TITLE", context.school().getName());
         parameters.put(
                 "COVER_SUBTITLE",
                 "Année scolaire " + context.academicYear().getCode()
                         + " — " + context.enrollments().size() + " élève(s)"
         );
-        parameters.put("T1_LABEL", termLabel(context.termPeriods().get(0), "1er TRIMESTRE"));
-        parameters.put("T2_LABEL", termLabel(context.termPeriods().get(1), "2e TRIMESTRE"));
-        parameters.put("T3_LABEL", termLabel(context.termPeriods().get(2), "3e TRIMESTRE"));
-        parameters.put("PRINT_PLACE", "");
+        parameters.put("FLAG_IMAGE", resolveClasspathImage(FLAG_PATH));
+        parameters.put("ARMS_IMAGE", resolveClasspathImage(ARMS_PATH));
+        parameters.put(
+                "PRINT_PLACE",
+                resolveSchoolLocation(context.school()).cityName()
+        );
         parameters.put("PRINT_DATE", DATE_FORMATTER.format(LocalDate.now()));
         return parameters;
     }
 
-    private String termLabel(TermPeriods termPeriods, String fallback) {
-        if (termPeriods == null || termPeriods.term() == null) {
-            return fallback;
-        }
-        return termPeriods.term().getName() != null ? termPeriods.term().getName() : fallback;
+    private Object resolveClasspathImage(String path) {
+        java.net.URL url = getClass().getClassLoader().getResource(path);
+        return url;
     }
 
     /**
@@ -807,11 +872,27 @@ public class BulletinReportService {
         return "AUTRES";
     }
 
+    private String resolveSubDomainName(Subject subject) {
+        if (subject == null || subject.getSubjectSubDomain() == null) {
+            return "";
+        }
+        SubjectSubDomain subDomain = subject.getSubjectSubDomain();
+        return subDomain.getName() != null ? subDomain.getName() : "";
+    }
+
     private int resolveDomainDisplayOrder(Subject subject) {
         SubjectDomain domain = resolveSubjectDomain(subject);
         return domain != null && domain.getDisplayOrder() != null
                 ? domain.getDisplayOrder()
                 : Integer.MAX_VALUE;
+    }
+
+    private int resolveSubDomainDisplayOrder(Subject subject) {
+        if (subject == null || subject.getSubjectSubDomain() == null) {
+            return Integer.MAX_VALUE;
+        }
+        Integer order = subject.getSubjectSubDomain().getDisplayOrder();
+        return order != null ? order : Integer.MAX_VALUE;
     }
 
     private SubjectDomain resolveSubjectDomain(Subject subject) {
@@ -842,12 +923,14 @@ public class BulletinReportService {
 
     private BigDecimal sumNullable(BigDecimal... values) {
         BigDecimal sum = BigDecimal.ZERO;
+        boolean any = false;
         for (BigDecimal value : values) {
             if (value != null) {
                 sum = sum.add(value);
+                any = true;
             }
         }
-        return sum;
+        return any ? sum : null;
     }
 
     private BigDecimal nullToZero(BigDecimal value) {
@@ -886,36 +969,138 @@ public class BulletinReportService {
 
     private record TermScore(
             BigDecimal max,
+            BigDecimal examMax,
+            BigDecimal trimMax,
             BigDecimal p1,
             BigDecimal p2,
             BigDecimal exam,
-            BigDecimal moy,
             BigDecimal tot
     ) {
-        static TermScore empty(BigDecimal max) {
-            return new TermScore(max, null, null, null, null, null);
+    }
+
+    /** Accumulateur pour sous-totaux / maxima généraux (somme du sous-ensemble). */
+    private static final class TermScoreAgg {
+        private BigDecimal maxPeriod = BigDecimal.ZERO;
+        private BigDecimal examMax = BigDecimal.ZERO;
+        private BigDecimal trimMax = BigDecimal.ZERO;
+        private BigDecimal p1 = BigDecimal.ZERO;
+        private BigDecimal p2 = BigDecimal.ZERO;
+        private BigDecimal exam = BigDecimal.ZERO;
+        private BigDecimal tot = BigDecimal.ZERO;
+        private boolean anyP1;
+        private boolean anyP2;
+        private boolean anyExam;
+        private boolean anyTot;
+
+        static TermScoreAgg zero() {
+            return new TermScoreAgg();
+        }
+
+        void add(TermScore score) {
+            maxPeriod = maxPeriod.add(nullSafeBd(score.max()));
+            examMax = examMax.add(nullSafeBd(score.examMax()));
+            trimMax = trimMax.add(nullSafeBd(score.trimMax()));
+            if (score.p1() != null) {
+                p1 = p1.add(score.p1());
+                anyP1 = true;
+            }
+            if (score.p2() != null) {
+                p2 = p2.add(score.p2());
+                anyP2 = true;
+            }
+            if (score.exam() != null) {
+                exam = exam.add(score.exam());
+                anyExam = true;
+            }
+            if (score.tot() != null) {
+                tot = tot.add(score.tot());
+                anyTot = true;
+            }
+        }
+
+        TermScore toTermScore() {
+            return new TermScore(
+                    maxPeriod,
+                    examMax,
+                    trimMax,
+                    anyP1 ? p1 : null,
+                    anyP2 ? p2 : null,
+                    anyExam ? exam : null,
+                    anyTot ? tot : null
+            );
+        }
+
+        private static BigDecimal nullSafeBd(BigDecimal value) {
+            return value != null ? value : BigDecimal.ZERO;
         }
     }
 
-    private record WeightedScore(BigDecimal score, BigDecimal weight) {
+    private record EnrollmentTotals(TermScore t1, TermScore t2, TermScore t3) {
+        static EnrollmentTotals empty() {
+            TermScore empty = new TermScore(
+                    BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                    null, null, null, null
+            );
+            return new EnrollmentTotals(empty, empty, empty);
+        }
+
+        BigDecimal yearTot() {
+            return nullToZeroStatic(t1.tot())
+                    .add(nullToZeroStatic(t2.tot()))
+                    .add(nullToZeroStatic(t3.tot()));
+        }
+
+        BigDecimal yearMax() {
+            return nullToZeroStatic(t1.trimMax())
+                    .add(nullToZeroStatic(t2.trimMax()))
+                    .add(nullToZeroStatic(t3.trimMax()));
+        }
+
+        private static BigDecimal nullToZeroStatic(BigDecimal value) {
+            return value != null ? value : BigDecimal.ZERO;
+        }
+    }
+
+    private record SchoolLocation(String provinceName, String cityName, String communeName) {
+    }
+
+    private record ColumnPercentages(
+            String t1P1,
+            String t1P2,
+            String t1Exam,
+            String t1Tot,
+            String t2P1,
+            String t2P2,
+            String t2Exam,
+            String t2Tot,
+            String t3P1,
+            String t3P2,
+            String t3Exam,
+            String t3Tot,
+            String year
+    ) {
     }
 
     private record StudentIdentity(
             UUID studentEnrollmentId,
             String studentNumber,
             String studentFullName,
+            String gender,
             String birthPlace,
             String birthDate,
             String classroomName,
             String enrollmentNumber,
-            String photoPath,
             String schoolName,
             String schoolCode,
-            String schoolAddress,
+            String provinceName,
+            String cityName,
+            String communeName,
             String principalName,
             String academicYearLabel,
+            String bulletinTitle,
             String classRank,
-            String schoolRank
+            String studentCount,
+            ColumnPercentages percentages
     ) {
     }
 }

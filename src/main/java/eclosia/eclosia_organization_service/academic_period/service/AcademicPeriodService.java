@@ -9,7 +9,6 @@ import eclosia.eclosia_organization_service.academic_term.entity.AcademicTerm;
 import eclosia.eclosia_organization_service.academic_term.repository.AcademicTermRepository;
 import eclosia.eclosia_organization_service.common.exception.BadRequestException;
 import eclosia.eclosia_organization_service.common.exception.ResourceNotFoundException;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +17,6 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Data
 public class AcademicPeriodService {
 
     private final AcademicPeriodRepository repository;
